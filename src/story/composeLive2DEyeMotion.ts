@@ -1,4 +1,7 @@
-const EYE_OPEN_PARAMETER_IDS = ['ParamEyeLOpen', 'ParamEyeROpen'] as const
+const EYE_OPEN_PARAMETER_IDS: readonly [left: string, right: string] = [
+  'ParamEyeLOpen',
+  'ParamEyeROpen'
+]
 
 type Live2DCoreModelLike = {
   getParameterValueById?: (id: unknown) => number
@@ -64,7 +67,7 @@ class Live2DEyeMotionCompositor {
   private readonly updateMotion: (model: object, now: number) => boolean
   private readonly updateFacial: (model: object, now: number) => boolean
   private active?: ActiveComposition
-  private nextToken = 0
+  private nextToken: number = 0
 
   constructor(
     internalModel: Live2DInternalModelLike,

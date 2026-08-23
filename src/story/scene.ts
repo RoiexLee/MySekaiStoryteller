@@ -79,8 +79,8 @@ const TELOP_HOLD_TIME_MS: number = 2000
 const TELOP_HIDE_TIME_MS: number = 200
 const VOICE_VOLUME: number = 0.5
 const LAYOUT_HOLOGRAM_EFFECT_PREFIX: string = '__layout-hologram:'
-const MOTION_EYE_OPEN_PARAMS = ['ParamEyeROpen', 'ParamEyeLOpen'] as const
-const MOTION_IGNORE_FACE_PARAMS = [
+const MOTION_EYE_OPEN_PARAMS: readonly string[] = ['ParamEyeROpen', 'ParamEyeLOpen']
+const MOTION_IGNORE_FACE_PARAMS: readonly string[] = [
   'ParamEyeballX',
   'ParamEyeballY',
   'ParamBrowRX',
@@ -110,11 +110,11 @@ const MOTION_IGNORE_FACE_PARAMS = [
   'ParamSweatOn',
   'ParamSweatMove',
   'ParamCheekAngry'
-] as const
-const MOTION_IGNORE_FACE_AND_EYE_PARAMS = [
+]
+const MOTION_IGNORE_FACE_AND_EYE_PARAMS: readonly string[] = [
   ...MOTION_EYE_OPEN_PARAMS,
   ...MOTION_IGNORE_FACE_PARAMS
-] as const
+]
 
 type PositionRel = {
   x: number
