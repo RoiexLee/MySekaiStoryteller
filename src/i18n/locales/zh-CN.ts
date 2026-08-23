@@ -393,6 +393,7 @@ export const zhCN = {
     addSnippetFailed: '添加片段失败',
     importAssetTitle: '导入{{kind}}',
     importAssetFailed: '导入{{kind}}失败',
+    importAssetSummary: '{{kind}}导入完成：成功 {{successCount}} 个，失败 {{failureCount}} 个。',
     renameAssetFailed: '重命名资源键失败',
     memoryStoryReference: '当前内存 story · {{id}}',
     inspectReferencesFailed: '检查资源引用失败',

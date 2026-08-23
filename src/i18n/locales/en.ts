@@ -410,6 +410,8 @@ export const en: LocaleShape = {
     addSnippetFailed: 'Could not add snippet',
     importAssetTitle: 'Import {{kind}}',
     importAssetFailed: 'Could not import {{kind}}',
+    importAssetSummary:
+      '{{kind}} import complete: {{successCount}} succeeded, {{failureCount}} failed.',
     renameAssetFailed: 'Could not rename asset key',
     memoryStoryReference: 'In-memory story · {{id}}',
     inspectReferencesFailed: 'Could not inspect asset references',

@@ -395,6 +395,7 @@ export const zhHK: LocaleShape = {
     addSnippetFailed: '加入片段失敗',
     importAssetTitle: '匯入{{kind}}',
     importAssetFailed: '匯入{{kind}}失敗',
+    importAssetSummary: '{{kind}}匯入完成：成功 {{successCount}} 個，失敗 {{failureCount}} 個。',
     renameAssetFailed: '重新命名資源鍵失敗',
     memoryStoryReference: '目前記憶體 story · {{id}}',
     inspectReferencesFailed: '檢查資源引用失敗',
