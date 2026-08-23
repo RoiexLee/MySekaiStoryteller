@@ -904,26 +904,52 @@ export default function App({
     if (!loadedProject) return
     const extensions: readonly string[] =
       kind === 'backgrounds' ? ['png', 'jpg', 'jpeg', 'webp'] : ['ogg', 'mp3', 'wav', 'm4a']
-    const sourcePath = await openFileDialog({
-      multiple: false,
+    const sourcePaths: string[] | null = await openFileDialog({
+      multiple: true,
       title: t('editor.importAssetTitle', { kind: localizeAssetKind(kind) }),
       filters: [{ name: localizeAssetKind(kind), extensions: [...extensions] }]
     })
-    if (!sourcePath || Array.isArray(sourcePath)) return
+    if (!sourcePaths?.length) return
 
     setActionError(null)
     try {
       const saved: boolean = await flushEditorWrites()
       if (!saved) return
+      let successCount: number = 0
+      const importErrors: string[] = []
       await runProjectMutation(async (): Promise<void> => {
-        const result: ProjectAssetMutationResult = await importProjectAsset(
-          loadedProject.previewInput.projectName,
-          kind,
-          sourcePath
-        )
-        replaceAssets(result.assets)
-        setSelectedAsset({ kind, key: result.key })
-        setActivePanel('assets')
+        for (const sourcePath of sourcePaths) {
+          try {
+            const result: ProjectAssetMutationResult = await importProjectAsset(
+              loadedProject.previewInput.projectName,
+              kind,
+              sourcePath
+            )
+            successCount += 1
+            replaceAssets(result.assets)
+            setSelectedAsset({ kind, key: result.key })
+          } catch (error: unknown) {
+            importErrors.push(
+              `${fileNameFromPath(sourcePath)}: ${describeError(
+                error,
+                t('editor.importAssetFailed', { kind: localizeAssetKind(kind) })
+              )}`
+            )
+          }
+        }
+        if (successCount > 0) setActivePanel('assets')
+      })
+      const summary: string = t('editor.importAssetSummary', {
+        kind: localizeAssetKind(kind),
+        successCount,
+        failureCount: importErrors.length
+      })
+      const message: string = importErrors.length > 0 ? `${summary} ${importErrors[0]}` : summary
+      if (importErrors.length > 0) setActionError(importErrors[0])
+      setEditorNotice({
+        id: Date.now(),
+        message,
+        variant: importErrors.length > 0 ? 'error' : 'success'
       })
     } catch (error: unknown) {
       const message: string = describeError(

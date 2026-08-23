@@ -407,6 +407,8 @@ export const ja: typeof en = {
     addSnippetFailed: 'スニペットを追加できませんでした',
     importAssetTitle: '{{kind}}をインポート',
     importAssetFailed: '{{kind}}をインポートできませんでした',
+    importAssetSummary:
+      '{{kind}}のインポート完了：成功 {{successCount}} 件、失敗 {{failureCount}} 件。',
     renameAssetFailed: 'リソースキーを変更できませんでした',
     memoryStoryReference: 'メモリ上のstory · {{id}}',
     inspectReferencesFailed: 'リソース参照を確認できませんでした',
