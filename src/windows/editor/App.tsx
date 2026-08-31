@@ -115,6 +115,12 @@ import {
   type SequentialAssetImportResult
 } from './importAssetsSequentially'
 import {
+  importNewModelsSequentially,
+  type NewModelImportFailure,
+  type NewModelImportRequest,
+  type NewModelImportResult
+} from './importNewModelsSequentially'
+import {
   registerExistingModelsSequentially,
   type ExistingModelRegistrationFailure,
   type ExistingModelRegistrationRequest,
@@ -166,6 +172,16 @@ type PendingAssetWrite = {
 }
 
 type ExistingModelCustomization = {
+  name: string
+  key: string
+}
+
+type ModelImportSelection = {
+  sourcePath: string
+  archiveEntry: string | undefined
+  archiveCandidates: readonly ModelArchiveCandidate[]
+  requiresArchiveEntrySelection: boolean
+  inspectionError: string | undefined
   name: string
   key: string
 }
@@ -1632,33 +1648,62 @@ export default function App({
             throw error
           }
         }}
-        onImport={async (
-          sourcePath: string,
-          archiveEntry: string | undefined,
-          key: string,
-          name: string
-        ): Promise<void> => {
+        onImport={async (requests: readonly NewModelImportRequest[]): Promise<void> => {
+          setActionError(null)
           try {
             const saved: boolean = await flushEditorWrites()
             if (!saved) throw new Error(t('editor.saveCurrentChangesFailed'))
-            await runProjectMutation(async (): Promise<void> => {
-              const imported: ImportedModelResult = await importGlobalModel(
-                sourcePath,
-                name || undefined,
-                archiveEntry
-              )
-              replaceModelRegistry(imported.registry)
-              const result: ProjectAssetMutationResult = await registerProjectModel(
-                previewInput.projectName,
-                imported.modelId,
-                key || undefined,
-                name || undefined
-              )
-              replaceAssets(result.assets)
-              setSelectedAsset({ kind: 'models', key: result.key })
-              setActivePanel('assets')
-              setRegisterModelOpen(false)
+            const batchResult: NewModelImportResult = await runProjectMutation(
+              async (): Promise<NewModelImportResult> =>
+                importNewModelsSequentially<ImportedModelResult, ProjectAssetMutationResult>(
+                  requests,
+                  async (
+                    sourcePath: string,
+                    resolvedName: string | undefined,
+                    archiveEntry: string | undefined
+                  ): Promise<ImportedModelResult> =>
+                    importGlobalModel(sourcePath, resolvedName, archiveEntry),
+                  async (
+                    modelId: string,
+                    resolvedKey: string | undefined,
+                    resolvedName: string | undefined
+                  ): Promise<ProjectAssetMutationResult> =>
+                    registerProjectModel(
+                      previewInput.projectName,
+                      modelId,
+                      resolvedKey,
+                      resolvedName
+                    ),
+                  (imported: ImportedModelResult): void => {
+                    replaceModelRegistry(imported.registry)
+                  },
+                  (result: ProjectAssetMutationResult): void => {
+                    replaceAssets(result.assets)
+                    setSelectedAsset({ kind: 'models', key: result.key })
+                  }
+                )
+            )
+            if (batchResult.successCount > 0) setActivePanel('assets')
+            const importErrors: string[] = batchResult.failures.map(
+              (failure: NewModelImportFailure): string =>
+                `${fileNameFromPath(failure.sourcePath)}: ${describeError(
+                  failure.error,
+                  t('editor.importModelFailed')
+                )}`
+            )
+            const summary: string = t('editor.importModelsSummary', {
+              successCount: batchResult.successCount,
+              failureCount: importErrors.length
             })
+            const message: string =
+              importErrors.length > 0 ? `${summary} ${importErrors[0]}` : summary
+            if (importErrors.length > 0) setActionError(importErrors[0])
+            setEditorNotice({
+              id: Date.now(),
+              message,
+              variant: importErrors.length > 0 ? 'error' : 'success'
+            })
+            setRegisterModelOpen(false)
           } catch (error: unknown) {
             setActionError(describeError(error, t('editor.importModelFailed')))
             throw error
@@ -1818,12 +1863,7 @@ function ModelRegistrationDialog({
   registry: ModelRegistry
   onOpenChange: (open: boolean) => void
   onRegister: (requests: readonly ExistingModelRegistrationRequest[]) => Promise<void>
-  onImport: (
-    sourcePath: string,
-    archiveEntry: string | undefined,
-    key: string,
-    name: string
-  ) => Promise<void>
+  onImport: (requests: readonly NewModelImportRequest[]) => Promise<void>
 }): JSX.Element {
   const { t } = useTranslation()
   const mobileRuntime: boolean = isMobileRuntime()
@@ -1842,17 +1882,20 @@ function ModelRegistrationDialog({
   const [modelCustomizations, setModelCustomizations] = useState<
     Map<string, ExistingModelCustomization>
   >((): Map<string, ExistingModelCustomization> => new Map())
-  const [sourcePath, setSourcePath] = useState<string>('')
-  const [archiveEntry, setArchiveEntry] = useState<string | undefined>(undefined)
-  const [pendingArchivePath, setPendingArchivePath] = useState<string>('')
-  const [archiveCandidates, setArchiveCandidates] = useState<readonly ModelArchiveCandidate[]>([])
+  const [modelImportSelections, setModelImportSelections] = useState<ModelImportSelection[]>([])
+  const [expandedImportSourcePaths, setExpandedImportSourcePaths] = useState<Set<string>>(
+    (): Set<string> => new Set()
+  )
+  const [archiveSelectionSourcePath, setArchiveSelectionSourcePath] = useState<string>('')
   const [selectedArchiveEntry, setSelectedArchiveEntry] = useState<string>('')
   const [archiveSelectionOpen, setArchiveSelectionOpen] = useState<boolean>(false)
   const [inspectingArchive, setInspectingArchive] = useState<boolean>(false)
-  const [key, setKey] = useState<string>('')
-  const [name, setName] = useState<string>('')
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
+  const activeArchiveSelection: ModelImportSelection | undefined = modelImportSelections.find(
+    (selection: ModelImportSelection): boolean =>
+      selection.sourcePath === archiveSelectionSourcePath
+  )
 
   useEffect((): void => {
     if (!open) return
@@ -1860,15 +1903,12 @@ function ModelRegistrationDialog({
     setSelectedModelIds(new Set<string>())
     setExpandedModelIds(new Set<string>())
     setModelCustomizations(new Map<string, ExistingModelCustomization>())
-    setSourcePath('')
-    setArchiveEntry(undefined)
-    setPendingArchivePath('')
-    setArchiveCandidates([])
+    setModelImportSelections([])
+    setExpandedImportSourcePaths(new Set<string>())
+    setArchiveSelectionSourcePath('')
     setSelectedArchiveEntry('')
     setArchiveSelectionOpen(false)
     setInspectingArchive(false)
-    setKey('')
-    setName('')
     setSubmitting(false)
     setError('')
   }, [open])
@@ -1917,9 +1957,59 @@ function ModelRegistrationDialog({
     )
   }
 
-  async function chooseModelEntry(): Promise<void> {
-    const selected = await openFileDialog({
-      multiple: false,
+  function toggleImportCustomization(sourcePath: string): void {
+    setExpandedImportSourcePaths((current: Set<string>): Set<string> => {
+      const next: Set<string> = new Set(current)
+      if (next.has(sourcePath)) {
+        next.delete(sourcePath)
+      } else {
+        next.add(sourcePath)
+      }
+      return next
+    })
+  }
+
+  function updateImportSelection(sourcePath: string, field: 'key' | 'name', value: string): void {
+    setModelImportSelections((current: ModelImportSelection[]): ModelImportSelection[] =>
+      current.map(
+        (selection: ModelImportSelection): ModelImportSelection =>
+          selection.sourcePath === sourcePath ? { ...selection, [field]: value } : selection
+      )
+    )
+  }
+
+  function openArchiveEntrySelection(selection: ModelImportSelection): void {
+    const firstCandidate: ModelArchiveCandidate | undefined =
+      selection.archiveCandidates.find(
+        (candidate: ModelArchiveCandidate): boolean => candidate.path === selection.archiveEntry
+      ) ?? selection.archiveCandidates[0]
+    if (!firstCandidate) return
+    setArchiveSelectionSourcePath(selection.sourcePath)
+    setSelectedArchiveEntry(firstCandidate.path)
+    setArchiveSelectionOpen(true)
+  }
+
+  function confirmArchiveEntrySelection(): void {
+    if (!archiveSelectionSourcePath || !selectedArchiveEntry) return
+    setModelImportSelections((current: ModelImportSelection[]): ModelImportSelection[] =>
+      current.map(
+        (selection: ModelImportSelection): ModelImportSelection =>
+          selection.sourcePath === archiveSelectionSourcePath
+            ? {
+                ...selection,
+                archiveEntry: selectedArchiveEntry,
+                requiresArchiveEntrySelection: false,
+                inspectionError: undefined
+              }
+            : selection
+      )
+    )
+    setArchiveSelectionOpen(false)
+  }
+
+  async function chooseModelEntries(): Promise<void> {
+    const selectedPaths: string[] | null = await openFileDialog({
+      multiple: true,
       directory: false,
       title: t('editor.chooseLive2dEntry'),
       filters: [
@@ -1929,44 +2019,71 @@ function ModelRegistrationDialog({
         }
       ]
     })
-    if (typeof selected !== 'string') return
+    if (!selectedPaths?.length) return
 
     setError('')
-    if (!mobileRuntime && !selected.toLocaleLowerCase().endsWith('.zip')) {
-      setSourcePath(selected)
-      setArchiveEntry(undefined)
-      return
-    }
-
-    setSourcePath('')
-    setArchiveEntry(undefined)
+    setModelImportSelections([])
+    setExpandedImportSourcePaths(new Set<string>())
     setInspectingArchive(true)
     try {
-      const inspection = await inspectModelArchive(selected)
-      const recognized: ModelArchiveCandidate[] = inspection.candidates.filter(
-        (candidate: ModelArchiveCandidate): boolean => candidate.recognized
-      )
-      if (recognized.length === 1) {
-        setSourcePath(selected)
-        setArchiveEntry(recognized[0].path)
-        return
-      }
+      const nextSelections: ModelImportSelection[] = []
+      const inspectionErrors: string[] = []
+      for (const selectedPath of selectedPaths) {
+        const baseSelection: ModelImportSelection = {
+          sourcePath: selectedPath,
+          archiveEntry: undefined,
+          archiveCandidates: [],
+          requiresArchiveEntrySelection: false,
+          inspectionError: undefined,
+          name: '',
+          key: ''
+        }
+        if (!mobileRuntime && !selectedPath.toLocaleLowerCase().endsWith('.zip')) {
+          nextSelections.push(baseSelection)
+          continue
+        }
 
-      const firstCandidate: ModelArchiveCandidate | undefined =
-        recognized[0] ?? inspection.candidates[0]
-      if (!firstCandidate) {
-        setError(t('editor.noJsonEntry'))
-        return
-      }
+        try {
+          const inspection = await inspectModelArchive(selectedPath)
+          const recognized: ModelArchiveCandidate[] = inspection.candidates.filter(
+            (candidate: ModelArchiveCandidate): boolean => candidate.recognized
+          )
+          if (recognized.length === 1) {
+            nextSelections.push({
+              ...baseSelection,
+              archiveEntry: recognized[0].path,
+              archiveCandidates: recognized
+            })
+            continue
+          }
 
-      setPendingArchivePath(selected)
-      setArchiveCandidates(recognized.length > 1 ? recognized : inspection.candidates)
-      setSelectedArchiveEntry(firstCandidate.path)
-      setArchiveSelectionOpen(true)
-    } catch (inspectionError: unknown) {
-      setSourcePath('')
-      setArchiveEntry(undefined)
-      setError(describeError(inspectionError, t('editor.inspectModelZipFailed')))
+          const archiveCandidates: readonly ModelArchiveCandidate[] =
+            recognized.length > 1 ? recognized : inspection.candidates
+          const firstCandidate: ModelArchiveCandidate | undefined = archiveCandidates[0]
+          if (!firstCandidate) {
+            const inspectionMessage: string = t('editor.noJsonEntry')
+            nextSelections.push({ ...baseSelection, inspectionError: inspectionMessage })
+            inspectionErrors.push(`${fileNameFromPath(selectedPath)}: ${inspectionMessage}`)
+            continue
+          }
+
+          nextSelections.push({
+            ...baseSelection,
+            archiveEntry: firstCandidate.path,
+            archiveCandidates,
+            requiresArchiveEntrySelection: true
+          })
+        } catch (inspectionError: unknown) {
+          const inspectionMessage: string = describeError(
+            inspectionError,
+            t('editor.inspectModelZipFailed')
+          )
+          nextSelections.push({ ...baseSelection, inspectionError: inspectionMessage })
+          inspectionErrors.push(`${fileNameFromPath(selectedPath)}: ${inspectionMessage}`)
+        }
+      }
+      setModelImportSelections(nextSelections)
+      if (inspectionErrors.length > 0) setError(inspectionErrors[0])
     } finally {
       setInspectingArchive(false)
     }
@@ -1991,7 +2108,15 @@ function ModelRegistrationDialog({
         )
         await onRegister(requests)
       } else {
-        await onImport(sourcePath, archiveEntry, key, name)
+        const requests: NewModelImportRequest[] = modelImportSelections.map(
+          (selection: ModelImportSelection): NewModelImportRequest => ({
+            sourcePath: selection.sourcePath,
+            archiveEntry: selection.archiveEntry,
+            key: selection.key || undefined,
+            name: selection.name || undefined
+          })
+        )
+        await onImport(requests)
       }
     } catch (submitError: unknown) {
       setError(
@@ -2166,7 +2291,14 @@ function ModelRegistrationDialog({
             </div>
           ) : (
             <div className="min-w-0 max-w-full overflow-hidden rounded-md border border-dashed p-4">
-              <p className="text-sm font-medium">{t('editor.chooseModelSource')}</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium">{t('editor.chooseModelSource')}</p>
+                {modelImportSelections.length > 0 && (
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {t('editor.selectedModelCount', { count: modelImportSelections.length })}
+                  </span>
+                )}
+              </div>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
                 {mobileRuntime ? t('editor.mobileModelZipHint') : t('editor.desktopModelHint')}
               </p>
@@ -2176,57 +2308,134 @@ function ModelRegistrationDialog({
                 size="sm"
                 className="mt-3"
                 disabled={submitting || inspectingArchive}
-                onClick={(): void => void chooseModelEntry()}
+                onClick={(): void => void chooseModelEntries()}
               >
-                {inspectingArchive ? t('editor.inspectingZip') : t('common.chooseFile')}
+                {inspectingArchive ? t('editor.inspectingZip') : t('editor.chooseModelFiles')}
               </Button>
-              {sourcePath && (
-                <p
-                  className="mt-3 block w-full min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[11px] text-muted-foreground"
-                  title={sourcePath}
+              {modelImportSelections.length > 0 && (
+                <div
+                  role="group"
+                  aria-label={t('editor.chooseModelSource')}
+                  className="mt-3 max-h-80 space-y-1 overflow-y-auto rounded-md border bg-muted/15 p-1.5 scrollbar-thin scrollbar-thumb-muted-foreground/25 scrollbar-track-transparent"
                 >
-                  {fileNameFromPath(sourcePath)}
-                  {archiveEntry ? ` · ${archiveEntry}` : ''}
-                </p>
+                  {modelImportSelections.map((selection: ModelImportSelection): JSX.Element => {
+                    const expanded: boolean = expandedImportSourcePaths.has(selection.sourcePath)
+                    const isArchive: boolean =
+                      mobileRuntime || selection.sourcePath.toLocaleLowerCase().endsWith('.zip')
+                    return (
+                      <div
+                        key={selection.sourcePath}
+                        className={cn(
+                          'min-w-0 overflow-hidden rounded-sm bg-background/70 text-foreground',
+                          submitting && 'opacity-60'
+                        )}
+                      >
+                        <div className="flex min-w-0 items-center gap-2 px-3 py-2">
+                          {isArchive ? (
+                            <FileArchive className="size-4 shrink-0 text-muted-foreground" />
+                          ) : (
+                            <FileJson className="size-4 shrink-0 text-muted-foreground" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className="truncate font-mono text-[11px]"
+                              title={selection.sourcePath}
+                            >
+                              {fileNameFromPath(selection.sourcePath)}
+                            </p>
+                            {selection.archiveEntry && (
+                              <p
+                                className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground"
+                                title={selection.archiveEntry}
+                              >
+                                {selection.archiveEntry}
+                              </p>
+                            )}
+                            {selection.inspectionError && (
+                              <p className="mt-1 break-all text-[10px] leading-4 text-destructive">
+                                {selection.inspectionError}
+                              </p>
+                            )}
+                          </div>
+                          {(selection.requiresArchiveEntrySelection ||
+                            selection.archiveCandidates.length > 1) && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                'h-7 shrink-0 px-2 text-[11px]',
+                                selection.requiresArchiveEntrySelection &&
+                                  'border-amber-500/60 text-amber-700 dark:text-amber-300'
+                              )}
+                              disabled={submitting}
+                              onClick={(): void => openArchiveEntrySelection(selection)}
+                            >
+                              {selection.requiresArchiveEntrySelection
+                                ? t('editor.chooseEntry')
+                                : t('editor.changeEntry')}
+                            </Button>
+                          )}
+                        </div>
+                        <div className="border-t border-border/60">
+                          <button
+                            type="button"
+                            className="flex h-8 w-full items-center gap-2 px-3 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                            aria-expanded={expanded}
+                            disabled={submitting}
+                            onClick={(): void => toggleImportCustomization(selection.sourcePath)}
+                          >
+                            <ChevronRight
+                              className={cn(
+                                'size-3.5 transition-transform',
+                                expanded && 'rotate-90'
+                              )}
+                            />
+                            {t('editor.advanced')}
+                          </button>
+                          {expanded && (
+                            <div className="grid gap-3 border-t border-border/60 bg-background/60 px-3 py-3 sm:grid-cols-2">
+                              <label className="block min-w-0 text-xs font-medium text-muted-foreground">
+                                {t('editor.optionalDisplayName')}
+                                <Input
+                                  value={selection.name}
+                                  disabled={submitting}
+                                  className="mt-2 h-9"
+                                  onChange={(event: ChangeEvent<HTMLInputElement>): void =>
+                                    updateImportSelection(
+                                      selection.sourcePath,
+                                      'name',
+                                      event.currentTarget.value
+                                    )
+                                  }
+                                />
+                              </label>
+                              <label className="block min-w-0 text-xs font-medium text-muted-foreground">
+                                {t('editor.projectAssetKey')}
+                                <Input
+                                  value={selection.key}
+                                  disabled={submitting}
+                                  placeholder={t('editor.autoGeneratePlaceholder')}
+                                  className="mt-2 h-9 font-mono text-xs"
+                                  onChange={(event: ChangeEvent<HTMLInputElement>): void =>
+                                    updateImportSelection(
+                                      selection.sourcePath,
+                                      'key',
+                                      event.currentTarget.value
+                                    )
+                                  }
+                                />
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               )}
             </div>
           )}
-
-          {mode === 'import' ? (
-            <>
-              <label className="block min-w-0 text-xs font-medium text-muted-foreground">
-                {t('editor.optionalDisplayName')}
-                <Input
-                  value={name}
-                  disabled={submitting}
-                  className="mt-2 h-9"
-                  onChange={(event: ChangeEvent<HTMLInputElement>): void =>
-                    setName(event.currentTarget.value)
-                  }
-                />
-              </label>
-              <details className="group min-w-0 max-w-full overflow-hidden rounded-md border bg-muted/15">
-                <summary className="flex h-9 cursor-pointer list-none items-center gap-2 px-3 text-xs font-medium text-muted-foreground select-none hover:text-foreground [&::-webkit-details-marker]:hidden">
-                  <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" />
-                  {t('editor.advanced')}
-                </summary>
-                <div className="border-t px-3 py-3">
-                  <label className="block text-xs font-medium text-muted-foreground">
-                    {t('editor.projectAssetKey')}
-                    <Input
-                      value={key}
-                      disabled={submitting}
-                      placeholder={t('editor.autoGeneratePlaceholder')}
-                      className="mt-2 h-9 font-mono text-xs"
-                      onChange={(event: ChangeEvent<HTMLInputElement>): void =>
-                        setKey(event.currentTarget.value)
-                      }
-                    />
-                  </label>
-                </div>
-              </details>
-            </>
-          ) : null}
           {error && <p className="min-w-0 break-all text-xs leading-5 text-destructive">{error}</p>}
         </div>
 
@@ -2244,7 +2453,13 @@ function ModelRegistrationDialog({
             disabled={
               submitting ||
               inspectingArchive ||
-              (mode === 'existing' ? selectedModelIds.size === 0 : !sourcePath)
+              (mode === 'existing'
+                ? selectedModelIds.size === 0
+                : modelImportSelections.length === 0 ||
+                  modelImportSelections.some(
+                    (selection: ModelImportSelection): boolean =>
+                      selection.requiresArchiveEntrySelection
+                  ))
             }
             onClick={(): void => void submit()}
           >
@@ -2260,7 +2475,7 @@ function ModelRegistrationDialog({
             <DialogHeader>
               <DialogTitle>{t('editor.chooseZipEntry')}</DialogTitle>
               <DialogDescription>
-                {archiveCandidates.some(
+                {activeArchiveSelection?.archiveCandidates.some(
                   (candidate: ModelArchiveCandidate): boolean => candidate.recognized
                 )
                   ? t('editor.chooseRecognizedEntry')
@@ -2268,7 +2483,7 @@ function ModelRegistrationDialog({
               </DialogDescription>
             </DialogHeader>
             <div className="max-h-80 space-y-1 overflow-y-auto rounded-md border bg-muted/15 p-1.5 scrollbar-thin scrollbar-thumb-muted-foreground/25 scrollbar-track-transparent">
-              {archiveCandidates.map(
+              {(activeArchiveSelection?.archiveCandidates ?? []).map(
                 (candidate: ModelArchiveCandidate): JSX.Element => (
                   <button
                     key={candidate.path}
@@ -2317,11 +2532,7 @@ function ModelRegistrationDialog({
               <Button
                 type="button"
                 disabled={!selectedArchiveEntry}
-                onClick={(): void => {
-                  setSourcePath(pendingArchivePath)
-                  setArchiveEntry(selectedArchiveEntry)
-                  setArchiveSelectionOpen(false)
-                }}
+                onClick={confirmArchiveEntrySelection}
               >
                 {t('editor.useEntry')}
               </Button>
