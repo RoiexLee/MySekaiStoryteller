@@ -60,9 +60,9 @@ export default class StoryDispatcher {
   cancel(): void {
     if (this.status === 'completed' || this.status === 'cancelled' || this.status === 'failed')
       return
+    this.runtime.clock.interrupt()
     this.abortController.abort()
     this.runtime.scene.invalidateState()
-    this.runtime.clock.interrupt()
   }
 
   async run(story: StoryData): Promise<void> {
@@ -97,9 +97,9 @@ export default class StoryDispatcher {
     this.emit({ type: 'story:start', story })
 
     const externalAbort = (): void => {
+      this.runtime.clock.interrupt()
       this.abortController.abort()
       this.runtime.scene.invalidateState()
-      this.runtime.clock.interrupt()
     }
     this.externalSignal?.addEventListener('abort', externalAbort, { once: true })
 
