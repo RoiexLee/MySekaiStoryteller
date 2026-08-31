@@ -114,6 +114,12 @@ import {
   type SequentialAssetImportFailure,
   type SequentialAssetImportResult
 } from './importAssetsSequentially'
+import {
+  registerExistingModelsSequentially,
+  type ExistingModelRegistrationFailure,
+  type ExistingModelRegistrationRequest,
+  type ExistingModelRegistrationResult
+} from './registerExistingModelsSequentially'
 import { EditorProductTour } from '@/onboarding/EditorProductTour'
 import { normalizeOnboardingSettings } from '@/onboarding/types'
 import { useTranslation } from 'react-i18next'
@@ -157,6 +163,11 @@ type QueuedStorySave = {
 type PendingAssetWrite = {
   projectName: string
   assets: ProjectAssets
+}
+
+type ExistingModelCustomization = {
+  name: string
+  key: string
 }
 
 const EMPTY_ASSETS: ProjectAssets = {
@@ -1570,22 +1581,52 @@ export default function App({
         open={registerModelOpen}
         registry={previewInput.modelRegistry}
         onOpenChange={setRegisterModelOpen}
-        onRegister={async (modelId: string, key: string, name: string): Promise<void> => {
+        onRegister={async (
+          requests: readonly ExistingModelRegistrationRequest[]
+        ): Promise<void> => {
+          setActionError(null)
           try {
             const saved: boolean = await flushEditorWrites()
             if (!saved) throw new Error(t('editor.saveCurrentChangesFailed'))
-            await runProjectMutation(async (): Promise<void> => {
-              const result: ProjectAssetMutationResult = await registerProjectModel(
-                previewInput.projectName,
-                modelId,
-                key || undefined,
-                name || undefined
-              )
-              replaceAssets(result.assets)
-              setSelectedAsset({ kind: 'models', key: result.key })
-              setActivePanel('assets')
-              setRegisterModelOpen(false)
+            const batchResult: ExistingModelRegistrationResult = await runProjectMutation(
+              async (): Promise<ExistingModelRegistrationResult> =>
+                registerExistingModelsSequentially<ProjectAssetMutationResult>(
+                  requests,
+                  async (
+                    modelId: string,
+                    resolvedKey: string | undefined,
+                    resolvedName: string | undefined
+                  ): Promise<ProjectAssetMutationResult> =>
+                    registerProjectModel(
+                      previewInput.projectName,
+                      modelId,
+                      resolvedKey,
+                      resolvedName
+                    ),
+                  (result: ProjectAssetMutationResult): void => {
+                    replaceAssets(result.assets)
+                    setSelectedAsset({ kind: 'models', key: result.key })
+                  }
+                )
+            )
+            if (batchResult.successCount > 0) setActivePanel('assets')
+            const registrationErrors: string[] = batchResult.failures.map(
+              (failure: ExistingModelRegistrationFailure): string =>
+                `${failure.modelId}: ${describeError(failure.error, t('editor.registerModelFailed'))}`
+            )
+            const summary: string = t('editor.registerModelsSummary', {
+              successCount: batchResult.successCount,
+              failureCount: registrationErrors.length
             })
+            const message: string =
+              registrationErrors.length > 0 ? `${summary} ${registrationErrors[0]}` : summary
+            if (registrationErrors.length > 0) setActionError(registrationErrors[0])
+            setEditorNotice({
+              id: Date.now(),
+              message,
+              variant: registrationErrors.length > 0 ? 'error' : 'success'
+            })
+            setRegisterModelOpen(false)
           } catch (error: unknown) {
             setActionError(describeError(error, t('editor.registerModelFailed')))
             throw error
@@ -1776,7 +1817,7 @@ function ModelRegistrationDialog({
   open: boolean
   registry: ModelRegistry
   onOpenChange: (open: boolean) => void
-  onRegister: (modelId: string, key: string, name: string) => Promise<void>
+  onRegister: (requests: readonly ExistingModelRegistrationRequest[]) => Promise<void>
   onImport: (
     sourcePath: string,
     archiveEntry: string | undefined,
@@ -1791,9 +1832,16 @@ function ModelRegistrationDialog({
       Object.entries(registry.models).sort(([left], [right]): number => left.localeCompare(right)),
     [registry.models]
   )
-  const firstModelId: string = modelEntries[0]?.[0] ?? ''
   const [mode, setMode] = useState<'existing' | 'import'>('existing')
-  const [modelId, setModelId] = useState<string>('')
+  const [selectedModelIds, setSelectedModelIds] = useState<Set<string>>(
+    (): Set<string> => new Set()
+  )
+  const [expandedModelIds, setExpandedModelIds] = useState<Set<string>>(
+    (): Set<string> => new Set()
+  )
+  const [modelCustomizations, setModelCustomizations] = useState<
+    Map<string, ExistingModelCustomization>
+  >((): Map<string, ExistingModelCustomization> => new Map())
   const [sourcePath, setSourcePath] = useState<string>('')
   const [archiveEntry, setArchiveEntry] = useState<string | undefined>(undefined)
   const [pendingArchivePath, setPendingArchivePath] = useState<string>('')
@@ -1809,7 +1857,9 @@ function ModelRegistrationDialog({
   useEffect((): void => {
     if (!open) return
     setMode('existing')
-    setModelId(firstModelId)
+    setSelectedModelIds(new Set<string>())
+    setExpandedModelIds(new Set<string>())
+    setModelCustomizations(new Map<string, ExistingModelCustomization>())
     setSourcePath('')
     setArchiveEntry(undefined)
     setPendingArchivePath('')
@@ -1821,7 +1871,51 @@ function ModelRegistrationDialog({
     setName('')
     setSubmitting(false)
     setError('')
-  }, [firstModelId, open])
+  }, [open])
+
+  function setModelSelected(nextModelId: string, selected: boolean): void {
+    setSelectedModelIds((current: Set<string>): Set<string> => {
+      const next: Set<string> = new Set(current)
+      if (selected) {
+        next.add(nextModelId)
+      } else {
+        next.delete(nextModelId)
+      }
+      return next
+    })
+  }
+
+  function toggleModelCustomization(modelId: string): void {
+    setExpandedModelIds((current: Set<string>): Set<string> => {
+      const next: Set<string> = new Set(current)
+      if (next.has(modelId)) {
+        next.delete(modelId)
+      } else {
+        next.add(modelId)
+      }
+      return next
+    })
+  }
+
+  function updateModelCustomization(
+    modelId: string,
+    field: keyof ExistingModelCustomization,
+    value: string
+  ): void {
+    setModelCustomizations(
+      (
+        current: Map<string, ExistingModelCustomization>
+      ): Map<string, ExistingModelCustomization> => {
+        const next: Map<string, ExistingModelCustomization> = new Map(current)
+        const previous: ExistingModelCustomization = current.get(modelId) ?? {
+          name: '',
+          key: ''
+        }
+        next.set(modelId, { ...previous, [field]: value })
+        return next
+      }
+    )
+  }
 
   async function chooseModelEntry(): Promise<void> {
     const selected = await openFileDialog({
@@ -1884,7 +1978,18 @@ function ModelRegistrationDialog({
     setError('')
     try {
       if (mode === 'existing') {
-        await onRegister(modelId, key, name)
+        const requests: ExistingModelRegistrationRequest[] = [...selectedModelIds].map(
+          (selectedModelId: string): ExistingModelRegistrationRequest => {
+            const customization: ExistingModelCustomization | undefined =
+              modelCustomizations.get(selectedModelId)
+            return {
+              modelId: selectedModelId,
+              key: customization?.key || undefined,
+              name: customization?.name || undefined
+            }
+          }
+        )
+        await onRegister(requests)
       } else {
         await onImport(sourcePath, archiveEntry, key, name)
       }
@@ -1945,31 +2050,120 @@ function ModelRegistrationDialog({
 
         <div className="min-w-0 space-y-4">
           {mode === 'existing' ? (
-            <label className="block min-w-0 text-xs font-medium text-muted-foreground">
-              {t('editor.globalModel')}
+            <div className="min-w-0 text-xs font-medium text-muted-foreground">
+              <div className="flex items-center justify-between gap-3">
+                <span>{t('editor.globalModel')}</span>
+                {modelEntries.length > 0 && (
+                  <span className="font-normal">
+                    {t('editor.selectedModelCount', { count: selectedModelIds.size })}
+                  </span>
+                )}
+              </div>
               {modelEntries.length > 0 ? (
-                <select
-                  className="mt-2 h-9 w-full min-w-0 max-w-full rounded-md border bg-background px-2 text-sm text-foreground"
-                  value={modelId}
-                  disabled={submitting}
-                  onChange={(event: ChangeEvent<HTMLSelectElement>): void =>
-                    setModelId(event.currentTarget.value)
-                  }
+                <div
+                  role="group"
+                  aria-label={t('editor.globalModel')}
+                  className="mt-2 max-h-80 space-y-1 overflow-y-auto rounded-md border bg-muted/15 p-1.5 scrollbar-thin scrollbar-thumb-muted-foreground/25 scrollbar-track-transparent"
                 >
-                  {modelEntries.map(
-                    ([id, entry]): JSX.Element => (
-                      <option key={id} value={id}>
-                        {entry.name ?? id} · {id}
-                      </option>
+                  {modelEntries.map(([id, entry]): JSX.Element => {
+                    const selected: boolean = selectedModelIds.has(id)
+                    const expanded: boolean = expandedModelIds.has(id)
+                    const customization: ExistingModelCustomization | undefined =
+                      modelCustomizations.get(id)
+                    return (
+                      <div
+                        key={id}
+                        className={cn(
+                          'min-w-0 overflow-hidden rounded-sm text-foreground transition-colors',
+                          selected ? 'bg-accent' : 'hover:bg-accent/60',
+                          submitting && 'opacity-60'
+                        )}
+                      >
+                        <label
+                          className={cn(
+                            'flex min-w-0 cursor-pointer items-center gap-3 px-3 py-2 text-sm font-normal',
+                            submitting && 'cursor-default'
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            className="size-4 shrink-0 accent-primary"
+                            checked={selected}
+                            disabled={submitting}
+                            onChange={(event: ChangeEvent<HTMLInputElement>): void =>
+                              setModelSelected(id, event.currentTarget.checked)
+                            }
+                          />
+                          <span className="min-w-0 flex-1 truncate" title={entry.name ?? id}>
+                            {entry.name ?? id}
+                          </span>
+                          <span
+                            className="max-w-[50%] shrink-0 truncate font-mono text-[11px] text-muted-foreground"
+                            title={id}
+                          >
+                            {id}
+                          </span>
+                        </label>
+                        {selected && (
+                          <div className="border-t border-border/60">
+                            <button
+                              type="button"
+                              className="flex h-8 w-full items-center gap-2 px-3 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                              aria-expanded={expanded}
+                              disabled={submitting}
+                              onClick={(): void => toggleModelCustomization(id)}
+                            >
+                              <ChevronRight
+                                className={cn(
+                                  'size-3.5 transition-transform',
+                                  expanded && 'rotate-90'
+                                )}
+                              />
+                              {t('editor.advanced')}
+                            </button>
+                            {expanded && (
+                              <div className="grid gap-3 border-t border-border/60 bg-background/60 px-3 py-3 sm:grid-cols-2">
+                                <label className="block min-w-0 text-xs font-medium text-muted-foreground">
+                                  {t('editor.optionalDisplayName')}
+                                  <Input
+                                    value={customization?.name ?? ''}
+                                    disabled={submitting}
+                                    className="mt-2 h-9"
+                                    onChange={(event: ChangeEvent<HTMLInputElement>): void =>
+                                      updateModelCustomization(
+                                        id,
+                                        'name',
+                                        event.currentTarget.value
+                                      )
+                                    }
+                                  />
+                                </label>
+                                <label className="block min-w-0 text-xs font-medium text-muted-foreground">
+                                  {t('editor.projectAssetKey')}
+                                  <Input
+                                    value={customization?.key ?? ''}
+                                    disabled={submitting}
+                                    placeholder={t('editor.autoGeneratePlaceholder')}
+                                    className="mt-2 h-9 font-mono text-xs"
+                                    onChange={(event: ChangeEvent<HTMLInputElement>): void =>
+                                      updateModelCustomization(id, 'key', event.currentTarget.value)
+                                    }
+                                  />
+                                </label>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )
-                  )}
-                </select>
+                  })}
+                </div>
               ) : (
                 <span className="mt-2 block rounded-md border border-dashed px-3 py-4 text-sm font-normal">
                   {t('editor.noGlobalModels')}
                 </span>
               )}
-            </label>
+            </div>
           ) : (
             <div className="min-w-0 max-w-full overflow-hidden rounded-md border border-dashed p-4">
               <p className="text-sm font-medium">{t('editor.chooseModelSource')}</p>
@@ -1998,37 +2192,41 @@ function ModelRegistrationDialog({
             </div>
           )}
 
-          <label className="block min-w-0 text-xs font-medium text-muted-foreground">
-            {t('editor.optionalDisplayName')}
-            <Input
-              value={name}
-              disabled={submitting}
-              className="mt-2 h-9"
-              onChange={(event: ChangeEvent<HTMLInputElement>): void =>
-                setName(event.currentTarget.value)
-              }
-            />
-          </label>
-          <details className="group min-w-0 max-w-full overflow-hidden rounded-md border bg-muted/15">
-            <summary className="flex h-9 cursor-pointer list-none items-center gap-2 px-3 text-xs font-medium text-muted-foreground select-none hover:text-foreground [&::-webkit-details-marker]:hidden">
-              <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" />
-              {t('editor.advanced')}
-            </summary>
-            <div className="border-t px-3 py-3">
-              <label className="block text-xs font-medium text-muted-foreground">
-                {t('editor.projectAssetKey')}
+          {mode === 'import' ? (
+            <>
+              <label className="block min-w-0 text-xs font-medium text-muted-foreground">
+                {t('editor.optionalDisplayName')}
                 <Input
-                  value={key}
+                  value={name}
                   disabled={submitting}
-                  placeholder={t('editor.autoGeneratePlaceholder')}
-                  className="mt-2 h-9 font-mono text-xs"
+                  className="mt-2 h-9"
                   onChange={(event: ChangeEvent<HTMLInputElement>): void =>
-                    setKey(event.currentTarget.value)
+                    setName(event.currentTarget.value)
                   }
                 />
               </label>
-            </div>
-          </details>
+              <details className="group min-w-0 max-w-full overflow-hidden rounded-md border bg-muted/15">
+                <summary className="flex h-9 cursor-pointer list-none items-center gap-2 px-3 text-xs font-medium text-muted-foreground select-none hover:text-foreground [&::-webkit-details-marker]:hidden">
+                  <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" />
+                  {t('editor.advanced')}
+                </summary>
+                <div className="border-t px-3 py-3">
+                  <label className="block text-xs font-medium text-muted-foreground">
+                    {t('editor.projectAssetKey')}
+                    <Input
+                      value={key}
+                      disabled={submitting}
+                      placeholder={t('editor.autoGeneratePlaceholder')}
+                      className="mt-2 h-9 font-mono text-xs"
+                      onChange={(event: ChangeEvent<HTMLInputElement>): void =>
+                        setKey(event.currentTarget.value)
+                      }
+                    />
+                  </label>
+                </div>
+              </details>
+            </>
+          ) : null}
           {error && <p className="min-w-0 break-all text-xs leading-5 text-destructive">{error}</p>}
         </div>
 
@@ -2044,7 +2242,9 @@ function ModelRegistrationDialog({
           <Button
             type="button"
             disabled={
-              submitting || inspectingArchive || (mode === 'existing' ? !modelId : !sourcePath)
+              submitting ||
+              inspectingArchive ||
+              (mode === 'existing' ? selectedModelIds.size === 0 : !sourcePath)
             }
             onClick={(): void => void submit()}
           >
@@ -2191,7 +2391,9 @@ function countDescendants(node: NonNullable<ReturnType<typeof findEditorNode>>):
 }
 
 function describeError(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string' && error.trim()) return error
+  return fallback
 }
 
 function storyFingerprint(story: EditorStory): string {

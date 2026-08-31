@@ -378,9 +378,10 @@ export const en: LocaleShape = {
     acknowledged: 'Got it',
     addModel: 'Add model',
     addModelDescription: 'Use a model from global models or import a new Live2D model.',
-    existingModels: 'Existing global model',
+    existingModels: 'Existing global models',
     importModel: 'Import new model',
-    globalModel: 'Global model',
+    globalModel: 'Global models',
+    selectedModelCount: '{{count}} selected',
     noGlobalModels: 'No models are available in global models',
     chooseModelSource: 'Choose a model file',
     mobileModelZipHint:
@@ -389,7 +390,7 @@ export const en: LocaleShape = {
       'Supports *.model3.json, *.model.json, model.json, and ZIP. Entries inside ZIP files are detected automatically.',
     inspectingZip: 'Inspecting ZIP…',
     optionalDisplayName: 'Display name (optional)',
-    projectAssetKey: 'Project asset key',
+    projectAssetKey: 'Project asset key (optional)',
     autoGeneratePlaceholder: 'Leave blank to generate automatically',
     addToProject: 'Add to project',
     importAndAdd: 'Import and add',
@@ -412,6 +413,8 @@ export const en: LocaleShape = {
     importAssetFailed: 'Could not import {{kind}}',
     importAssetSummary:
       '{{kind}} import complete: {{successCount}} succeeded, {{failureCount}} failed.',
+    registerModelsSummary:
+      'Model registration complete: {{successCount}} succeeded, {{failureCount}} failed.',
     renameAssetFailed: 'Could not rename asset key',
     memoryStoryReference: 'In-memory story · {{id}}',
     inspectReferencesFailed: 'Could not inspect asset references',
