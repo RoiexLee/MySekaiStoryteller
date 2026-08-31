@@ -385,19 +385,23 @@ export const ja: typeof en = {
     existingModels: '既存のグローバルモデル',
     importModel: '新しいモデルをインポート',
     globalModel: 'グローバルモデル',
+    selectedModelCount: '{{count}}件選択',
     noGlobalModels: '利用できるグローバルモデルがありません',
     chooseModelSource: 'モデルファイルを選択',
     mobileModelZipHint:
-      'モデルフォルダー全体を含むZIPを選択してください。モデルエントリは自動認識されます。',
+      'モデルフォルダー全体を含むZIPを1つ以上選択してください。モデルエントリは自動認識されます。',
     desktopModelHint:
-      '*.model3.json、*.model.json、model.json、ZIPに対応しています。ZIP内のエントリは自動認識されます。',
-    inspectingZip: 'ZIPを確認中…',
+      '*.model3.json、*.model.json、model.json、ZIPを複数選択できます。ZIP内のエントリは自動認識されます。',
+    chooseModelFiles: 'ファイルを選択',
+    inspectingZip: 'ZIPファイルを確認中…',
     optionalDisplayName: '表示名（任意）',
-    projectAssetKey: 'プロジェクトのリソースキー',
+    projectAssetKey: 'プロジェクトのリソースキー（任意）',
     autoGeneratePlaceholder: '空欄で自動生成',
     addToProject: 'プロジェクトに追加',
     importAndAdd: 'インポートして追加',
     chooseZipEntry: 'ZIP内のモデルエントリを選択',
+    chooseEntry: 'エントリを選択',
+    changeEntry: 'エントリを変更',
     chooseRecognizedEntry:
       '複数の有効なエントリがあります。インポートするモデルを選択してください。',
     chooseJsonEntry: '名前から判定できませんでした。JSONファイルを選択してください。',
@@ -417,6 +421,9 @@ export const ja: typeof en = {
     importAssetFailed: '{{kind}}をインポートできませんでした',
     importAssetSummary:
       '{{kind}}のインポート完了：成功 {{successCount}} 件、失敗 {{failureCount}} 件。',
+    registerModelsSummary: 'モデル登録完了：成功 {{successCount}} 件、失敗 {{failureCount}} 件。',
+    importModelsSummary:
+      'モデルのインポート完了：成功 {{successCount}} 件、失敗 {{failureCount}} 件。',
     renameAssetFailed: 'リソースキーを変更できませんでした',
     memoryStoryReference: 'メモリ上のstory · {{id}}',
     inspectReferencesFailed: 'リソース参照を確認できませんでした',
