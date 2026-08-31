@@ -81,8 +81,9 @@ export function pauseSekaiLive2DSounds(owner: object): void {
 export function resumeSekaiLive2DSounds(owner: object): void {
   if (!pausedSoundOwners.delete(owner) || pausedSoundOwners.size > 0) return
 
+  const managedSounds: Set<ManagedLive2DSound> = new Set(getLive2DSoundManager()?.audios ?? [])
   for (const audio of pausedSounds) {
-    audio.resume()
+    if (managedSounds.has(audio)) audio.resume()
   }
   pausedSounds.clear()
 }

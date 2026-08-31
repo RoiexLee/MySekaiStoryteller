@@ -138,7 +138,7 @@ export type StorySceneApi = {
   moveModel(options: StoryModelMoveOptions): Promise<void>
   playMotion(options: StoryMotionOptions): Promise<void>
   setModelParameters(options: StoryModelParameterOptions): Promise<void>
-  showDialogue(options: StoryDialogueOptions): Promise<void>
+  showDialogue(options: StoryDialogueOptions, signal?: AbortSignal): Promise<void>
   hideDialogue(): Promise<void>
   showTelop(options: StoryTelopOptions): Promise<void>
   fadeOut(options: StoryFadeOutOptions): Promise<void>

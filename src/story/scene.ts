@@ -48,6 +48,7 @@ import uiTextUnderlineUrl from '@/story/assets/ui/ui_text_underline.svg?url'
 import { createInitialStorySceneState } from './state'
 import type { StoryModelSceneState, StorySceneState } from './state'
 import { composeLive2DEyeMotion } from './composeLive2DEyeMotion'
+import { playModelVoice, type StoryVoiceModel } from './modelVoice'
 
 export type CreateStorySceneOptions = {
   app: Application
@@ -182,17 +183,6 @@ type Live2DInternalModelLike = {
   readonly eyeBlink?: Live2DEyeBlinkLike
   extendParallelMotionManager?(managerCount: number): void
   on?(event: 'beforeMotionUpdate' | 'afterMotionUpdate', listener: () => void): unknown
-}
-
-type SpeakableSekaiLive2DModel = SekaiLive2DModel & {
-  speak(
-    sound: string,
-    options?: {
-      volume?: number
-      onFinish?: () => void
-      onError?: (error: Error) => void
-    }
-  ): Promise<boolean>
 }
 
 export function createStoryScene({
@@ -532,7 +522,7 @@ export function createStoryScene({
 
       await Promise.all(tasks)
     },
-    async showDialogue(options: StoryDialogueOptions): Promise<void> {
+    async showDialogue(options: StoryDialogueOptions, signal?: AbortSignal): Promise<void> {
       const ui: DialogueUiState = await getDialogueUi()
 
       resetDialogueUi(ui)
@@ -554,7 +544,14 @@ export function createStoryScene({
         : null
       if (modelInstance && options.voiceKey) {
         const resolvedVoice: ResolvedAsset<VoiceAsset> = resolveVoiceUrl(options.voiceKey)
-        waits.push(speakModel(modelInstance.model, resolvedVoice.url))
+        waits.push(
+          playModelVoice(
+            modelInstance.model as StoryVoiceModel,
+            resolvedVoice.url,
+            VOICE_VOLUME,
+            signal
+          )
+        )
       }
 
       waits.push(startDisplayDialogueContent(ui, animateLinear))
@@ -1496,25 +1493,6 @@ function resetModelParameters(model: SekaiLive2DModel): void {
   const parameters = getInternalModel(model).coreModel?.parameters
   if (!parameters || parameters.values.length !== parameters.defaultValues.length) return
   parameters.values.set(parameters.defaultValues)
-}
-
-function speakModel(model: SekaiLive2DModel, voiceUrl: string): Promise<void> {
-  const speakableModel: SpeakableSekaiLive2DModel = model as SpeakableSekaiLive2DModel
-
-  return new Promise<void>((resolve: () => void, reject: (reason?: unknown) => void): void => {
-    void speakableModel
-      .speak(voiceUrl, {
-        volume: VOICE_VOLUME,
-        onFinish: resolve,
-        onError: reject
-      })
-      .then((started: boolean): void => {
-        if (!started) {
-          resolve()
-        }
-      })
-      .catch(reject)
-  })
 }
 
 function drawFadeOverlay(overlay: Graphics, app: Application, color: string): void {
