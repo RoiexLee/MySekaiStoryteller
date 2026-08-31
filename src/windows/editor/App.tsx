@@ -109,6 +109,11 @@ import {
 } from './editorDocument'
 import { moveSnippetSubtree, type SnippetDropPlacement } from './editorTree'
 import { localizeAssetKind } from './editorLocalization'
+import {
+  importAssetsSequentially,
+  type SequentialAssetImportFailure,
+  type SequentialAssetImportResult
+} from './importAssetsSequentially'
 import { EditorProductTour } from '@/onboarding/EditorProductTour'
 import { normalizeOnboardingSettings } from '@/onboarding/types'
 import { useTranslation } from 'react-i18next'
@@ -915,33 +920,32 @@ export default function App({
     try {
       const saved: boolean = await flushEditorWrites()
       if (!saved) return
-      let successCount: number = 0
-      const importErrors: string[] = []
-      await runProjectMutation(async (): Promise<void> => {
-        for (const sourcePath of sourcePaths) {
-          try {
-            const result: ProjectAssetMutationResult = await importProjectAsset(
-              loadedProject.previewInput.projectName,
-              kind,
-              sourcePath
+      const batchResult: SequentialAssetImportResult = await runProjectMutation(
+        async (): Promise<SequentialAssetImportResult> => {
+          const result: SequentialAssetImportResult =
+            await importAssetsSequentially<ProjectAssetMutationResult>(
+              sourcePaths,
+              async (sourcePath: string): Promise<ProjectAssetMutationResult> =>
+                importProjectAsset(loadedProject.previewInput.projectName, kind, sourcePath),
+              (result: ProjectAssetMutationResult): void => {
+                replaceAssets(result.assets)
+                setSelectedAsset({ kind, key: result.key })
+              }
             )
-            successCount += 1
-            replaceAssets(result.assets)
-            setSelectedAsset({ kind, key: result.key })
-          } catch (error: unknown) {
-            importErrors.push(
-              `${fileNameFromPath(sourcePath)}: ${describeError(
-                error,
-                t('editor.importAssetFailed', { kind: localizeAssetKind(kind) })
-              )}`
-            )
-          }
+          if (result.successCount > 0) setActivePanel('assets')
+          return result
         }
-        if (successCount > 0) setActivePanel('assets')
-      })
+      )
+      const importErrors: string[] = batchResult.failures.map(
+        (failure: SequentialAssetImportFailure): string =>
+          `${fileNameFromPath(failure.sourcePath)}: ${describeError(
+            failure.error,
+            t('editor.importAssetFailed', { kind: localizeAssetKind(kind) })
+          )}`
+      )
       const summary: string = t('editor.importAssetSummary', {
         kind: localizeAssetKind(kind),
-        successCount,
+        successCount: batchResult.successCount,
         failureCount: importErrors.length
       })
       const message: string = importErrors.length > 0 ? `${summary} ${importErrors[0]}` : summary
