@@ -428,6 +428,8 @@ export const en: LocaleShape = {
     saveCurrentChangesFailed: 'Could not save current editor changes',
     registerModelFailed: 'Could not register model',
     importModelFailed: 'Could not import model',
+    importedModelRegistrationFailed:
+      '{{file}} was imported globally as “{{modelId}}” but could not be added to the project: {{error}} Use Existing global models to retry.',
     inspectModelZipFailed: 'Could not inspect model ZIP',
     chooseLive2dEntry: 'Choose Live2D model files',
     live2dModel: 'Live2D model',

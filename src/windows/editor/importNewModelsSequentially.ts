@@ -1,5 +1,7 @@
 export interface NewModelImportFailure {
   readonly sourcePath: string
+  readonly stage: 'import' | 'register'
+  readonly modelId?: string
   readonly error: unknown
 }
 
@@ -12,6 +14,7 @@ export interface NewModelImportRequest {
 
 export interface NewModelImportResult {
   readonly successCount: number
+  readonly importedCount: number
   readonly failures: readonly NewModelImportFailure[]
 }
 
@@ -34,23 +37,33 @@ export async function importNewModelsSequentially<
   onRegistered: (result: TRegistered, request: NewModelImportRequest) => void
 ): Promise<NewModelImportResult> {
   let successCount: number = 0
+  let importedCount: number = 0
   const failures: NewModelImportFailure[] = []
 
   for (const request of requests) {
+    let imported: TImported
     try {
-      const imported: TImported = await importOne(
-        request.sourcePath,
-        request.name,
-        request.archiveEntry
-      )
+      imported = await importOne(request.sourcePath, request.name, request.archiveEntry)
+      importedCount += 1
       onImported(imported, request)
+    } catch (error: unknown) {
+      failures.push({ sourcePath: request.sourcePath, stage: 'import', error })
+      continue
+    }
+
+    try {
       const registered: TRegistered = await registerOne(imported.modelId, request.key, request.name)
       onRegistered(registered, request)
       successCount += 1
     } catch (error: unknown) {
-      failures.push({ sourcePath: request.sourcePath, error })
+      failures.push({
+        sourcePath: request.sourcePath,
+        stage: 'register',
+        modelId: imported.modelId,
+        error
+      })
     }
   }
 
-  return { successCount, failures }
+  return { successCount, importedCount, failures }
 }
