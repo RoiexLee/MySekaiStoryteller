@@ -418,6 +418,8 @@ export const zhHK: LocaleShape = {
     saveCurrentChangesFailed: '儲存目前編輯器變更失敗',
     registerModelFailed: '註冊模型失敗',
     importModelFailed: '匯入模型失敗',
+    importedModelRegistrationFailed:
+      '{{file}} 已作為全域模型「{{modelId}}」匯入，但未能加入目前專案：{{error}} 請從「全域現有模型」中重新註冊。',
     inspectModelZipFailed: '檢查模型 ZIP 失敗',
     chooseLive2dEntry: '選擇 Live2D 模型檔案',
     live2dModel: 'Live2D 模型',

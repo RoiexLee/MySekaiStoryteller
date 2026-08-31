@@ -152,6 +152,7 @@ type StorySaveStatus = 'saved' | 'dirty' | 'saving' | 'error'
 type EditorNotice = {
   id: number
   message: string
+  details?: readonly string[]
   variant: ToastVariant
 }
 
@@ -975,11 +976,12 @@ export default function App({
         successCount: batchResult.successCount,
         failureCount: importErrors.length
       })
-      const message: string = importErrors.length > 0 ? `${summary} ${importErrors[0]}` : summary
+      const message: string = summary
       if (importErrors.length > 0) setActionError(importErrors[0])
       setEditorNotice({
         id: Date.now(),
         message,
+        details: importErrors.length > 0 ? importErrors : undefined,
         variant: importErrors.length > 0 ? 'error' : 'success'
       })
     } catch (error: unknown) {
@@ -1544,8 +1546,10 @@ export default function App({
         <Toast
           key={editorNotice.id}
           message={editorNotice.message}
+          details={editorNotice.details}
           variant={editorNotice.variant}
           closeLabel={t('common.close')}
+          duration={editorNotice.variant === 'error' ? 8000 : undefined}
           onDismiss={(): void => setEditorNotice(null)}
         />
       )}
@@ -1634,14 +1638,17 @@ export default function App({
               successCount: batchResult.successCount,
               failureCount: registrationErrors.length
             })
-            const message: string =
-              registrationErrors.length > 0 ? `${summary} ${registrationErrors[0]}` : summary
+            const message: string = summary
             if (registrationErrors.length > 0) setActionError(registrationErrors[0])
             setEditorNotice({
               id: Date.now(),
               message,
+              details: registrationErrors.length > 0 ? registrationErrors : undefined,
               variant: registrationErrors.length > 0 ? 'error' : 'success'
             })
+            if (batchResult.successCount === 0 && registrationErrors.length > 0) {
+              throw new Error(batchFailureMessage(summary, registrationErrors))
+            }
             setRegisterModelOpen(false)
           } catch (error: unknown) {
             setActionError(describeError(error, t('editor.registerModelFailed')))
@@ -1685,24 +1692,35 @@ export default function App({
             )
             if (batchResult.successCount > 0) setActivePanel('assets')
             const importErrors: string[] = batchResult.failures.map(
-              (failure: NewModelImportFailure): string =>
-                `${fileNameFromPath(failure.sourcePath)}: ${describeError(
+              (failure: NewModelImportFailure): string => {
+                const failureReason: string = describeError(
                   failure.error,
                   t('editor.importModelFailed')
-                )}`
+                )
+                return failure.stage === 'register' && failure.modelId
+                  ? t('editor.importedModelRegistrationFailed', {
+                      file: fileNameFromPath(failure.sourcePath),
+                      modelId: failure.modelId,
+                      error: failureReason
+                    })
+                  : `${fileNameFromPath(failure.sourcePath)}: ${failureReason}`
+              }
             )
             const summary: string = t('editor.importModelsSummary', {
               successCount: batchResult.successCount,
               failureCount: importErrors.length
             })
-            const message: string =
-              importErrors.length > 0 ? `${summary} ${importErrors[0]}` : summary
+            const message: string = summary
             if (importErrors.length > 0) setActionError(importErrors[0])
             setEditorNotice({
               id: Date.now(),
               message,
+              details: importErrors.length > 0 ? importErrors : undefined,
               variant: importErrors.length > 0 ? 'error' : 'success'
             })
+            if (batchResult.importedCount === 0 && importErrors.length > 0) {
+              throw new Error(batchFailureMessage(summary, importErrors))
+            }
             setRegisterModelOpen(false)
           } catch (error: unknown) {
             setActionError(describeError(error, t('editor.importModelFailed')))
@@ -2038,7 +2056,7 @@ function ModelRegistrationDialog({
           name: '',
           key: ''
         }
-        if (!mobileRuntime && !selectedPath.toLocaleLowerCase().endsWith('.zip')) {
+        if (!mobileRuntime && !selectedPath.toLowerCase().endsWith('.zip')) {
           nextSelections.push(baseSelection)
           continue
         }
@@ -2321,7 +2339,7 @@ function ModelRegistrationDialog({
                   {modelImportSelections.map((selection: ModelImportSelection): JSX.Element => {
                     const expanded: boolean = expandedImportSourcePaths.has(selection.sourcePath)
                     const isArchive: boolean =
-                      mobileRuntime || selection.sourcePath.toLocaleLowerCase().endsWith('.zip')
+                      mobileRuntime || selection.sourcePath.toLowerCase().endsWith('.zip')
                     return (
                       <div
                         key={selection.sourcePath}
@@ -2436,7 +2454,11 @@ function ModelRegistrationDialog({
               )}
             </div>
           )}
-          {error && <p className="min-w-0 break-all text-xs leading-5 text-destructive">{error}</p>}
+          {error && (
+            <p className="min-w-0 whitespace-pre-wrap break-all text-xs leading-5 text-destructive">
+              {error}
+            </p>
+          )}
         </div>
 
         <DialogFooter>
@@ -2605,6 +2627,10 @@ function describeError(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message
   if (typeof error === 'string' && error.trim()) return error
   return fallback
+}
+
+function batchFailureMessage(summary: string, failures: readonly string[]): string {
+  return [summary, ...failures].join('\n')
 }
 
 function storyFingerprint(story: EditorStory): string {

@@ -187,8 +187,11 @@ try {
     { key: 'guest-rin', sourcePath: 'rin.zip' }
   ])
   assert.equal(newModelResult.successCount, 2)
+  assert.equal(newModelResult.importedCount, 2)
   assert.equal(newModelResult.failures.length, 1)
   assert.equal(newModelResult.failures[0].sourcePath, 'broken.zip')
+  assert.equal(newModelResult.failures[0].stage, 'import')
+  assert.equal(newModelResult.failures[0].modelId, undefined)
   assert.equal(newModelResult.failures[0].error, invalidModelError)
 
   const importedBeforeRegistrationFailure = []
@@ -210,9 +213,44 @@ try {
   ])
   assert.deepEqual(registeredAfterFailure, ['global-len.model3.json'])
   assert.equal(registrationFailureResult.successCount, 1)
+  assert.equal(registrationFailureResult.importedCount, 2)
   assert.equal(registrationFailureResult.failures.length, 1)
   assert.equal(registrationFailureResult.failures[0].sourcePath, 'unregistered.zip')
+  assert.equal(registrationFailureResult.failures[0].stage, 'register')
+  assert.equal(registrationFailureResult.failures[0].modelId, 'global-unregistered.zip')
   assert.match(registrationFailureResult.failures[0].error.message, /registration failed/)
+
+  const allRegistrationFailedResult = await importNewModelsSequentially(
+    [{ sourcePath: 'registered-a.zip' }, { sourcePath: 'registered-b.zip' }],
+    async (sourcePath) => ({ modelId: `global-${sourcePath}` }),
+    async (modelId) => {
+      throw new Error(`registration failed:${modelId}`)
+    },
+    () => undefined,
+    () => assert.fail('The registration callback must not run for failed registrations')
+  )
+
+  assert.equal(allRegistrationFailedResult.successCount, 0)
+  assert.equal(allRegistrationFailedResult.importedCount, 2)
+  assert.deepEqual(
+    allRegistrationFailedResult.failures.map((failure) => ({
+      sourcePath: failure.sourcePath,
+      stage: failure.stage,
+      modelId: failure.modelId
+    })),
+    [
+      {
+        sourcePath: 'registered-a.zip',
+        stage: 'register',
+        modelId: 'global-registered-a.zip'
+      },
+      {
+        sourcePath: 'registered-b.zip',
+        stage: 'register',
+        modelId: 'global-registered-b.zip'
+      }
+    ]
+  )
 
   const singleNewModelResult = await importNewModelsSequentially(
     [{ sourcePath: 'solo.zip', archiveEntry: 'solo/model.json' }],
@@ -227,6 +265,7 @@ try {
   )
 
   assert.equal(singleNewModelResult.successCount, 1)
+  assert.equal(singleNewModelResult.importedCount, 1)
   assert.deepEqual(singleNewModelResult.failures, [])
 
   const allFailedNewModelResult = await importNewModelsSequentially(
@@ -240,9 +279,14 @@ try {
   )
 
   assert.equal(allFailedNewModelResult.successCount, 0)
+  assert.equal(allFailedNewModelResult.importedCount, 0)
   assert.deepEqual(
     allFailedNewModelResult.failures.map((failure) => failure.sourcePath),
     ['missing-model.zip', 'invalid-model.json']
+  )
+  assert.deepEqual(
+    allFailedNewModelResult.failures.map((failure) => failure.stage),
+    ['import', 'import']
   )
 
   const allFailedPaths = []

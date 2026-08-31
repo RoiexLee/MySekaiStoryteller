@@ -416,6 +416,8 @@ export const zhCN = {
     saveCurrentChangesFailed: '保存当前编辑器修改失败',
     registerModelFailed: '注册模型失败',
     importModelFailed: '导入模型失败',
+    importedModelRegistrationFailed:
+      '{{file}} 已作为全局模型「{{modelId}}」导入，但未能加入当前项目：{{error}} 请从“全局已有模型”中重新注册。',
     inspectModelZipFailed: '检查模型 ZIP 失败',
     chooseLive2dEntry: '选择 Live2D 模型文件',
     live2dModel: 'Live2D 模型',

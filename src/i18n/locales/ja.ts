@@ -432,6 +432,8 @@ export const ja: typeof en = {
     saveCurrentChangesFailed: '現在の編集内容を保存できませんでした',
     registerModelFailed: 'モデルを登録できませんでした',
     importModelFailed: 'モデルをインポートできませんでした',
+    importedModelRegistrationFailed:
+      '{{file}} はグローバルモデル “{{modelId}}” としてインポートされましたが、プロジェクトに追加できませんでした：{{error}} 「既存のグローバルモデル」から再登録してください。',
     inspectModelZipFailed: 'モデルZIPを確認できませんでした',
     chooseLive2dEntry: 'Live2Dモデルファイルを選択',
     live2dModel: 'Live2Dモデル',
