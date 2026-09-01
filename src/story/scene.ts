@@ -33,7 +33,7 @@ import {
   type LayoutModeData,
   type PositionData
 } from './schema'
-import type { SekaiLive2DModel } from '@/lib/live2d'
+import { synchronizePausedSekaiLive2DSounds, type SekaiLive2DModel } from '@/lib/live2d'
 import type { StoryPlaybackClock } from './playbackClock'
 import {
   createBuiltinVisualEffectRegistry,
@@ -549,7 +549,8 @@ export function createStoryScene({
             modelInstance.model as StoryVoiceModel,
             resolvedVoice.url,
             VOICE_VOLUME,
-            signal
+            signal,
+            synchronizePausedSekaiLive2DSounds
           )
         )
       }

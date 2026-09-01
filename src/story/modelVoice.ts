@@ -16,7 +16,8 @@ export function playModelVoice(
   model: StoryVoiceModel,
   voiceUrl: string,
   volume: number,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onStarted?: () => void
 ): Promise<void> {
   if (signal?.aborted) return Promise.reject(new StoryAbortError())
 
@@ -68,7 +69,11 @@ export function playModelVoice(
           fail(new StoryAbortError())
           return
         }
-        if (!started) finish()
+        if (!started) {
+          finish()
+          return
+        }
+        onStarted?.()
       })
       .catch(fail)
   })
