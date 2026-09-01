@@ -9,9 +9,13 @@ const server = await createServer({
 try {
   const { playModelVoice } = await server.ssrLoadModule('/src/story/modelVoice.ts')
   const { StoryAbortError } = await server.ssrLoadModule('/src/story/types.ts')
+  const { Live2DSoundPauseCoordinator } = await server.ssrLoadModule(
+    '/src/lib/Live2DSoundPauseCoordinator.ts'
+  )
 
   let finishVoice
   let stopCalls = 0
+  let startCalls = 0
   const completingModel = {
     async speak(_voiceUrl, options) {
       finishVoice = options.onFinish
@@ -21,7 +25,11 @@ try {
       stopCalls += 1
     }
   }
-  const completingTask = playModelVoice(completingModel, 'voice.ogg', 0.5)
+  const completingTask = playModelVoice(completingModel, 'voice.ogg', 0.5, undefined, () => {
+    startCalls += 1
+  })
+  await Promise.resolve()
+  assert.equal(startCalls, 1)
   finishVoice()
   await completingTask
   assert.equal(stopCalls, 0)
@@ -46,6 +54,7 @@ try {
   const loadingController = new globalThis.AbortController()
   let resolveLoading
   stopCalls = 0
+  let abortedStartCalls = 0
   const loadingModel = {
     speak() {
       return new Promise((resolve) => {
@@ -56,7 +65,15 @@ try {
       stopCalls += 1
     }
   }
-  const loadingTask = playModelVoice(loadingModel, 'loading.ogg', 0.5, loadingController.signal)
+  const loadingTask = playModelVoice(
+    loadingModel,
+    'loading.ogg',
+    0.5,
+    loadingController.signal,
+    () => {
+      abortedStartCalls += 1
+    }
+  )
   const loadingRejection = assert.rejects(loadingTask, (error) => error instanceof StoryAbortError)
   loadingController.abort()
   await loadingRejection
@@ -64,6 +81,7 @@ try {
   resolveLoading(true)
   await Promise.resolve()
   assert.equal(stopCalls, 2)
+  assert.equal(abortedStartCalls, 0)
 
   const preCancelledController = new globalThis.AbortController()
   preCancelledController.abort()
@@ -82,6 +100,72 @@ try {
     (error) => error instanceof StoryAbortError
   )
   assert.equal(preCancelledStarts, 0)
+
+  class MockSoundManager {}
+  MockSoundManager.audios = []
+  const createSound = () => ({
+    isPlaying: true,
+    pauseCalls: 0,
+    resumeCalls: 0,
+    pause() {
+      this.isPlaying = false
+      this.pauseCalls += 1
+    },
+    resume() {
+      this.isPlaying = true
+      this.resumeCalls += 1
+    }
+  })
+
+  const activeSound = createSound()
+  MockSoundManager.audios = [activeSound]
+  const activeCoordinator = new Live2DSoundPauseCoordinator(() => MockSoundManager)
+  const activeOwner = {}
+  activeCoordinator.pause(activeOwner)
+  activeCoordinator.pause(activeOwner)
+  assert.equal(activeSound.pauseCalls, 1)
+  assert.equal(activeSound.isPlaying, false)
+  activeCoordinator.resume(activeOwner)
+  assert.equal(activeSound.resumeCalls, 1)
+  assert.equal(activeSound.isPlaying, true)
+
+  const lateSound = createSound()
+  MockSoundManager.audios = []
+  const loadingCoordinator = new Live2DSoundPauseCoordinator(() => MockSoundManager)
+  const firstOwner = {}
+  const secondOwner = {}
+  loadingCoordinator.pause(firstOwner)
+  loadingCoordinator.pause(secondOwner)
+  let finishLateVoice
+  const lateModel = {
+    async speak(_voiceUrl, options) {
+      finishLateVoice = options.onFinish
+      MockSoundManager.audios.push(lateSound)
+      return true
+    },
+    stopSpeaking() {}
+  }
+  const lateTask = playModelVoice(lateModel, 'late.ogg', 0.5, undefined, () => {
+    loadingCoordinator.synchronize()
+  })
+  await Promise.resolve()
+  assert.equal(lateSound.pauseCalls, 1)
+  loadingCoordinator.resume(firstOwner)
+  assert.equal(lateSound.resumeCalls, 0)
+  loadingCoordinator.resume(secondOwner)
+  assert.equal(lateSound.resumeCalls, 1)
+  finishLateVoice()
+  await lateTask
+
+  const disposedSound = createSound()
+  MockSoundManager.audios = [disposedSound]
+  const disposedCoordinator = new Live2DSoundPauseCoordinator(() => MockSoundManager)
+  const disposedOwner = {}
+  disposedCoordinator.pause(disposedOwner)
+  MockSoundManager.audios = []
+  disposedCoordinator.resume(disposedOwner)
+  assert.equal(disposedSound.pauseCalls, 1)
+  assert.equal(disposedSound.resumeCalls, 0)
 
   const { default: StoryDispatcher } = await server.ssrLoadModule('/src/story/StoryDispatcher.ts')
   const calls = []
