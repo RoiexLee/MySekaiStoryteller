@@ -90,6 +90,7 @@ import {
   type FlatTreeNode
 } from './editorCatalog'
 import { EditorAssetInspector, EditorInspector } from './EditorInspector'
+import { BackgroundPreviewDialog } from './BackgroundPreviewDialog'
 import { EditorPreview, type EditorPreviewInput } from './EditorPreview'
 import { EditorSidebar, type EditorSidebarTab } from './EditorSidebar'
 import {
@@ -198,6 +199,7 @@ export default function App({
     (): ReadonlySet<string> => new Set()
   )
   const [selectedAsset, setSelectedAsset] = useState<EditorAssetSelection | null>(null)
+  const [previewBackgroundKey, setPreviewBackgroundKey] = useState<string | null>(null)
   const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false)
   const [deleteSnippetId, setDeleteSnippetId] = useState<string | null>(null)
   const [assetDeletePrompt, setAssetDeletePrompt] = useState<AssetDeletePrompt | null>(null)
@@ -1140,6 +1142,7 @@ export default function App({
       assets={previewInput.assets}
       selectedAsset={selectedAsset}
       addDialogOpen={addDialogOpen}
+      projectPath={previewInput.projectPath}
       onActivePanelChange={setActivePanel}
       onSearchQueryChange={setSearchQuery}
       onSelectNode={(nodeId: string): void => {
@@ -1170,6 +1173,11 @@ export default function App({
         setActivePanel('assets')
         if (phoneLayout) setMobileBottomTab('properties')
       }}
+      onOpenAssetPreview={(selection: EditorAssetSelection): void => {
+        if (selection.kind === 'backgrounds') {
+          setPreviewBackgroundKey(selection.key)
+        }
+      }}
       onAddDialogOpenChange={setAddDialogOpen}
       onAddSnippet={addSnippet}
       onImportAsset={(kind: Exclude<ProjectAssetKind, 'models'>): void => {
@@ -1184,6 +1192,7 @@ export default function App({
       <EditorAssetInspector
         assets={previewInput.assets}
         selectedAsset={selectedAsset}
+        projectPath={previewInput.projectPath}
         onModelChange={updateModelAsset}
         onFileAssetChange={updateFileAsset}
         onRename={(selection: EditorAssetSelection, key: string): void => {
@@ -1191,6 +1200,11 @@ export default function App({
         }}
         onDelete={(selection: EditorAssetSelection): void => {
           void requestDeleteAsset(selection)
+        }}
+        onOpenPreview={(selection: EditorAssetSelection): void => {
+          if (selection.kind === 'backgrounds') {
+            setPreviewBackgroundKey(selection.key)
+          }
         }}
       />
     ) : (
@@ -1565,6 +1579,21 @@ export default function App({
           } catch (error: unknown) {
             setActionError(describeError(error, t('editor.importModelFailed')))
             throw error
+          }
+        }}
+      />
+      <BackgroundPreviewDialog
+        open={previewBackgroundKey !== null}
+        assetKey={previewBackgroundKey}
+        asset={
+          previewBackgroundKey
+            ? (previewInput.assets.backgrounds[previewBackgroundKey] ?? null)
+            : null
+        }
+        projectPath={previewInput.projectPath}
+        onOpenChange={(open: boolean): void => {
+          if (!open) {
+            setPreviewBackgroundKey(null)
           }
         }}
       />
