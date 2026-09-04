@@ -5,6 +5,7 @@ import type {
   AppSettings,
   AppLanguage,
   AppearanceSettings,
+  InteractionSettings,
   PlaybackFontSettings,
   PlaybackSettings,
   RenderPrecision,
@@ -16,6 +17,7 @@ import { DEFAULT_ONBOARDING, normalizeOnboardingSettings } from '@/onboarding/ty
 import { defaultPlaybackFont, normalizePlaybackFont } from './fonts'
 import { defaultShortcutSettings, normalizeShortcutSettings } from './shortcuts'
 import { describeError, logger } from '@/lib/logger'
+import { DEFAULT_INTERACTION, normalizeInteractionSettings } from '@/lib/touchMode'
 import { listen, type Event as TauriEvent } from '@tauri-apps/api/event'
 import { applyAppLanguage, normalizeAppLanguage } from '@/i18n'
 
@@ -26,6 +28,7 @@ export type SettingsHook = {
   playback: PlaybackSettings
   shortcuts: ShortcutSettings
   onboarding: OnboardingSettings
+  interaction: InteractionSettings
   workspaceDir: string | null
   setLanguage: (language: AppLanguage) => void
   setFollowSystem: (follow: boolean) => void
@@ -35,6 +38,9 @@ export type SettingsHook = {
   setPlaybackFont: (value: PlaybackFontSettings) => void
   setShortcuts: (value: ShortcutSettings) => void
   setOnboarding: (value: OnboardingSettings) => void
+  setInteraction: (value: InteractionSettings) => void
+  setTouchMode: (value: boolean) => void
+  setFullscreenMode: (value: boolean) => void
   setWorkspaceDir: (dir: string) => void
 }
 
@@ -60,6 +66,7 @@ export function useSettingsState(): SettingsHook {
   const [workspaceDir, setWorkspaceDirState] = useState<string | null>(null)
   const [shortcuts, setShortcuts] = useState<ShortcutSettings>(defaultShortcutSettings)
   const [onboarding, setOnboarding] = useState<OnboardingSettings>(DEFAULT_ONBOARDING)
+  const [interaction, setInteractionState] = useState<InteractionSettings>(DEFAULT_INTERACTION)
   const [loaded, setLoaded] = useState(false)
   const [persistenceReady, setPersistenceReady] = useState(false)
 
@@ -99,6 +106,9 @@ export function useSettingsState(): SettingsHook {
         })
         setShortcuts(normalizeShortcutSettings(stored.shortcuts))
         setOnboarding(normalizeOnboardingSettings(stored.onboarding))
+        setInteractionState(
+          normalizeInteractionSettings(stored.interaction, { detectDefaultWhenMissing: true })
+        )
         setWorkspaceDirState(stored.workspaceDir ?? null)
         setPersistenceReady(true)
         setLoaded(true)
@@ -134,8 +144,8 @@ export function useSettingsState(): SettingsHook {
       setLanguage(normalizeAppLanguage(event.payload.language))
       setOnboarding((current: OnboardingSettings): OnboardingSettings => {
         if (
-          current.mainTourCompleted === nextOnboarding.mainTourCompleted &&
-          current.editorTourCompleted === nextOnboarding.editorTourCompleted
+          current.mainTourVersion === nextOnboarding.mainTourVersion &&
+          current.editorTourVersion === nextOnboarding.editorTourVersion
         ) {
           return current
         }
@@ -169,6 +179,7 @@ export function useSettingsState(): SettingsHook {
       playback,
       shortcuts,
       onboarding,
+      interaction,
       workspaceDir: workspaceDir ?? undefined
     }
 
@@ -181,6 +192,7 @@ export function useSettingsState(): SettingsHook {
     playback,
     shortcuts,
     onboarding,
+    interaction,
     workspaceDir,
     loaded,
     persistenceReady,
@@ -194,6 +206,7 @@ export function useSettingsState(): SettingsHook {
     playback,
     shortcuts,
     onboarding,
+    interaction,
     workspaceDir,
     setLanguage,
     setFollowSystem: (follow) =>
@@ -223,6 +236,18 @@ export function useSettingsState(): SettingsHook {
       })),
     setShortcuts: (value) => setShortcuts(normalizeShortcutSettings(value)),
     setOnboarding: (value) => setOnboarding(normalizeOnboardingSettings(value)),
+    setInteraction: (value) =>
+      setInteractionState(normalizeInteractionSettings(value, { detectDefaultWhenMissing: false })),
+    setTouchMode: (value) =>
+      setInteractionState((prev) => ({
+        ...prev,
+        touchMode: value
+      })),
+    setFullscreenMode: (value) =>
+      setInteractionState((prev) => ({
+        ...prev,
+        fullscreenMode: value
+      })),
     setWorkspaceDir: (dir: string): void => {
       // Persist immediately so backend project commands never race with the
       // debounced settings effect (critical on first-run / clear-data mobile).
@@ -237,6 +262,7 @@ export function useSettingsState(): SettingsHook {
         playback,
         shortcuts,
         onboarding,
+        interaction,
         workspaceDir: dir
       }
       void saveSettings(payload)

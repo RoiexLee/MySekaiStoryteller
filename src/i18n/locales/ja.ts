@@ -108,7 +108,14 @@ export const ja: typeof en = {
     continueEditing: '編集を続ける',
     noRecent: '編集したプロジェクトはまだありません。',
     quickActions: 'クイック操作',
-    allProjects: 'すべてのプロジェクト'
+    allProjects: 'すべてのプロジェクト',
+    touchPromptTitle: 'タッチモードを有効にしますか？',
+    touchPromptDescription:
+      'マウスホバーへの依存を減らし、プロジェクト操作を常に表示して指で操作しやすくします。',
+    touchMode: 'タッチモード',
+    touchModeHint: '設定からいつでも変更できます',
+    touchModeAria: 'タッチモードを切り替え',
+    touchNotNow: '今はしない'
   },
   projects: {
     title: 'すべてのプロジェクト',
@@ -166,12 +173,17 @@ export const ja: typeof en = {
     recording: '入力待ち…',
     resetShortcut: '既定のショートカットに戻す',
     conflict: '「{{title}}」のショートカットと競合しています',
+    onboarding: 'チュートリアル',
+    onboardingDescription: 'ホームまたはエディターのガイドをもう一度表示します。',
+    mainTour: 'ホームガイド',
+    editorTour: 'エディターチュートリアル',
+    completed: '完了',
+    mainTourPending: 'ホームで自動的に表示されます',
+    editorTourComplete: '完了済み。リセット後、次にエディターを開いたときに表示されます',
+    editorTourPending: '次にエディターを開いたときに自動表示されます',
+    restart: 'もう一度見る',
     saveProject: 'プロジェクトを保存',
     saveProjectDescription: '現在のプロジェクトをすぐに保存します',
-    undoEdit: '元に戻す',
-    undoEditDescription: '直前のエディター操作を元に戻します',
-    redoEdit: 'やり直す',
-    redoEditDescription: '直前に取り消したエディター操作をやり直します',
     reloadPlayer: '最初から再生',
     reloadPlayerDescription: '保存済みプロジェクトを読み直して最初から再生します',
     enterFullscreen: 'フルスクリーンにする',
@@ -179,7 +191,17 @@ export const ja: typeof en = {
     exitFullscreen: 'フルスクリーンを終了',
     exitFullscreenDescription: 'ウィンドウ表示に戻します',
     closePlayer: 'プレイヤーを閉じる',
-    closePlayerDescription: '現在のプレイヤーウィンドウを閉じます'
+    closePlayerDescription: '現在のプレイヤーウィンドウを閉じます',
+    interaction: '操作',
+    interactionDescription: 'タッチ端末向けにボタンと操作項目の表示を最適化します。',
+    touchMode: 'タッチモード',
+    touchModeDescription:
+      'マウスホバーを使わず、一覧の操作ボタンを常に表示して指で操作しやすくします。',
+    touchModeAria: 'タッチモードを切り替え',
+    fullscreenMode: 'フルスクリーンモード',
+    fullscreenModeDescription:
+      'Androidの没入型フルスクリーンを強制し、ステータスバーとナビゲーションバーを隠します。システムナビが画面下部を覆う場合に使用してください。',
+    fullscreenModeAria: 'フルスクリーンモードを切り替え'
   },
   about: {
     specialThanks: 'スペシャルサンクス',

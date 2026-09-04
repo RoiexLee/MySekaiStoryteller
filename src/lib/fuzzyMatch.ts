@@ -1,11 +1,11 @@
 export function fuzzyMatchOptions(
   options: readonly string[],
   query: string,
-  searchResultLimit: number
+  limit: number
 ): readonly string[] {
   const normalizedQuery: string = normalizeFuzzyText(query)
   const uniqueOptions: string[] = [...new Set(options)]
-  if (!normalizedQuery) return uniqueOptions
+  if (!normalizedQuery) return uniqueOptions.slice(0, limit)
 
   return uniqueOptions
     .map((option: string): { option: string; score: number | null } => ({
@@ -22,7 +22,7 @@ export function fuzzyMatchOptions(
       (left: { option: string; score: number }, right: { option: string; score: number }): number =>
         right.score - left.score || left.option.localeCompare(right.option)
     )
-    .slice(0, searchResultLimit)
+    .slice(0, limit)
     .map((match: { option: string; score: number }): string => match.option)
 }
 

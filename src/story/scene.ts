@@ -172,7 +172,6 @@ type Live2DInternalModelLike = {
   readonly width: number
   readonly height: number
   readonly originalHeight: number
-  getIdSafe?: (id: string) => unknown
   readonly parallelMotionManager?: ParallelMotionManagerLike[]
   readonly coreModel?: Live2DCoreModelLike
   readonly settings?: Live2DSettingsLike
@@ -241,10 +240,10 @@ export function createStoryScene({
     fastForwarding ? Promise.resolve() : clock.delay(timeMs)
   const waitUntil = (whenFinish: () => boolean): Promise<void> => clock.waitUntil(whenFinish)
 
-  const handleRendererResize = (): void => {
+  const resizeObserver = new ResizeObserver((): void => {
     relayoutScene()
-  }
-  app.renderer.on('resize', handleRendererResize)
+  })
+  resizeObserver.observe(app.canvas)
 
   const pixi: StoryPixiAccessApi = {
     app,
@@ -820,7 +819,7 @@ export function createStoryScene({
   function destroy(): void {
     if (destroyed) return
     destroyed = true
-    app.renderer.off('resize', handleRendererResize)
+    resizeObserver.disconnect()
 
     for (const dispose of disposers) {
       dispose()
@@ -1055,7 +1054,6 @@ function createDialogueText(screenWidth: number, screenHeight: number, fontFamil
       fontSize: screenHeight / 26,
       lineHeight: screenHeight / 19,
       stroke: { color: '#4A49688D', width: screenHeight / 120, join: 'round' },
-      breakWords: true,
       wordWrap: true,
       wordWrapWidth: screenWidth - x * 2
     }
@@ -1471,13 +1469,11 @@ function getCurveRunner(
 }
 
 function setModelParameter(model: SekaiLive2DModel, paramId: string, value: number): void {
-  const internalModel: Live2DInternalModelLike = getInternalModel(model)
-  const coreModel: Live2DCoreModelLike | undefined = internalModel.coreModel
+  const coreModel: Live2DCoreModelLike | undefined = getInternalModel(model).coreModel
   if (!coreModel) return
 
   if (coreModel.setParameterValueById) {
-    const id: unknown = internalModel.getIdSafe?.(paramId) ?? paramId
-    coreModel.setParameterValueById(id, value)
+    coreModel.setParameterValueById(paramId, value)
     return
   }
 

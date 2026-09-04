@@ -1,4 +1,8 @@
 import type { OnboardingSettings } from '@/onboarding/types'
+import type { InteractionSettings } from '@/lib/touchMode'
+
+export type { InteractionSettings }
+
 export type SystemTheme = 'light' | 'dark'
 
 export type AppLanguage = 'system' | 'zh-CN' | 'zh-HK' | 'en' | 'ja'
@@ -38,8 +42,6 @@ export type ShortcutBinding = {
 export type ShortcutSettings = {
   editor: {
     save: ShortcutBinding
-    undo: ShortcutBinding
-    redo: ShortcutBinding
   }
   player: {
     reload: ShortcutBinding
@@ -55,5 +57,6 @@ export type AppSettings = {
   playback: PlaybackSettings
   shortcuts: ShortcutSettings
   onboarding: OnboardingSettings
+  interaction: InteractionSettings
   workspaceDir?: string
 }
