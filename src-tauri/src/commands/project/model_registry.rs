@@ -766,17 +766,33 @@ mod tests {
 
     #[test]
     fn indexes_motion_and_facial_groups() {
+        let mut groups = serde_json::Map::new();
+        for index in 1..=100 {
+            groups.insert(
+                format!("motion_test_{index:03}"),
+                json!([{ "File": format!("motions/motion_test_{index:03}.motion3.json") }]),
+            );
+            groups.insert(
+                format!("face_test_{index:03}"),
+                json!([{ "File": format!("motions/face_test_{index:03}.motion3.json") }]),
+            );
+        }
+
         let entry = json!({
             "FileReferences": {
-                "Motions": {
-                    "w-adult-think01": [{ "File": "motions/body.motion3.json" }],
-                    "face_smile_01": [{ "File": "motions/face.motion3.json" }]
-                }
+                "Motions": groups
             }
         });
         let (motions, facials) = motion_catalog_from_json(&entry);
-        assert_eq!(motions, vec!["w-adult-think01"]);
-        assert_eq!(facials, vec!["face_smile_01"]);
+        let expected_motions: Vec<String> = (1..=100)
+            .map(|index| format!("motion_test_{index:03}"))
+            .collect();
+        let expected_facials: Vec<String> = (1..=100)
+            .map(|index| format!("face_test_{index:03}"))
+            .collect();
+
+        assert_eq!(motions, expected_motions);
+        assert_eq!(facials, expected_facials);
     }
 
     #[test]
