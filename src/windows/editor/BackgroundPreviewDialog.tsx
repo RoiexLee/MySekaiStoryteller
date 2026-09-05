@@ -43,6 +43,9 @@ export function BackgroundPreviewDialog({
     try {
       const normalizedRoot: string = projectPath.replace(/[\\/]+$/, '')
       const normalizedRelative: string = asset.path.replace(/^[\\/]+/, '')
+      if (normalizedRelative.split(/[\\/]+/).includes('..')) {
+        throw new Error(`资源路径不能包含上级目录: ${asset.path}`)
+      }
       const fullPath: string = `${normalizedRoot}/${normalizedRelative}`
       await revealItemInDir(fullPath)
       logger.info('editor.background_revealed_in_dir', { path: fullPath })
@@ -54,7 +57,7 @@ export function BackgroundPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-h-[90vh] max-w-4xl flex-col p-4 sm:p-6"
+        className="flex max-w-4xl flex-col p-4 sm:p-6"
         data-slot="background-preview-dialog"
       >
         <DialogHeader className="mb-2 shrink-0">
@@ -83,7 +86,6 @@ export function BackgroundPreviewDialog({
         </DialogHeader>
 
         <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-md border bg-muted/40 p-2">
-          {/* 棋盘格底纹支持透明 PNG 背景 */}
           <div
             className="pointer-events-none absolute inset-0 opacity-25"
             style={{
@@ -105,7 +107,7 @@ export function BackgroundPreviewDialog({
             <img
               src={backgroundUrl}
               alt={displayName}
-              className="relative z-10 max-h-[calc(85vh-8rem)] max-w-full rounded object-contain shadow-sm"
+              className="relative z-10 max-h-[calc(85dvh-8rem)] max-w-full rounded object-contain shadow-sm"
               onError={(): void => setLoadError(true)}
             />
           )}

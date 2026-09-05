@@ -919,7 +919,7 @@ function AssetGroup({
                     onOpenAssetPreview?.({ kind: item.kind, key: item.key })
                   }
                 }}
-                title={item.kind === 'backgrounds' ? t('editor.clickToExpand') : undefined}
+                title={item.kind === 'backgrounds' ? t('editor.doubleClickToExpand') : undefined}
               >
                 <AssetThumbnail
                   kind={item.kind}

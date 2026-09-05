@@ -1131,6 +1131,12 @@ export default function App({
   const tabletLayout: boolean = viewportMode === 'tablet' && !mobileLandscapeLayout
   const compactChrome: boolean = phoneLayout || tabletLayout || mobileLandscapeLayout
 
+  const openBackgroundPreview = (selection: EditorAssetSelection): void => {
+    if (selection.kind === 'backgrounds') {
+      setPreviewBackgroundKey(selection.key)
+    }
+  }
+
   const sidebarNode: JSX.Element = (
     <EditorSidebar
       activePanel={activePanel}
@@ -1173,11 +1179,7 @@ export default function App({
         setActivePanel('assets')
         if (phoneLayout) setMobileBottomTab('properties')
       }}
-      onOpenAssetPreview={(selection: EditorAssetSelection): void => {
-        if (selection.kind === 'backgrounds') {
-          setPreviewBackgroundKey(selection.key)
-        }
-      }}
+      onOpenAssetPreview={openBackgroundPreview}
       onAddDialogOpenChange={setAddDialogOpen}
       onAddSnippet={addSnippet}
       onImportAsset={(kind: Exclude<ProjectAssetKind, 'models'>): void => {
@@ -1201,11 +1203,7 @@ export default function App({
         onDelete={(selection: EditorAssetSelection): void => {
           void requestDeleteAsset(selection)
         }}
-        onOpenPreview={(selection: EditorAssetSelection): void => {
-          if (selection.kind === 'backgrounds') {
-            setPreviewBackgroundKey(selection.key)
-          }
-        }}
+        onOpenPreview={openBackgroundPreview}
       />
     ) : (
       <EditorInspector
@@ -1583,6 +1581,7 @@ export default function App({
         }}
       />
       <BackgroundPreviewDialog
+        key={previewBackgroundKey}
         open={previewBackgroundKey !== null}
         assetKey={previewBackgroundKey}
         asset={

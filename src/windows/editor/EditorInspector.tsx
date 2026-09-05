@@ -1386,6 +1386,7 @@ export function EditorAssetInspector({
               />
               {selectedAsset.kind === 'backgrounds' ? (
                 <BackgroundAssetPreview
+                  key={selectedAsset.key}
                   projectPath={projectPath}
                   asset={asset as BackgroundAsset}
                   assetKey={selectedAsset.key}
@@ -1425,8 +1426,7 @@ function BackgroundAssetPreview({
           onClick={(): void => onOpenPreview?.()}
           title={t('editor.clickToExpand')}
         >
-          {/* 棋盘格底纹支持透明 PNG 背景 */}
-          <div
+          <span
             className="pointer-events-none absolute inset-0 opacity-20"
             style={{
               backgroundImage: `linear-gradient(45deg, #888 25%, transparent 25%),
@@ -1438,10 +1438,10 @@ function BackgroundAssetPreview({
             }}
           />
           {loadError ? (
-            <div className="relative z-10 flex flex-col items-center gap-1.5 text-muted-foreground">
+            <span className="relative z-10 flex flex-col items-center gap-1.5 text-muted-foreground">
               <ImageIcon className="size-6 stroke-[1.5]" />
               <span className="text-xs">{t('editor.failedToLoadImage')}</span>
-            </div>
+            </span>
           ) : (
             <>
               <img
@@ -1450,12 +1450,12 @@ function BackgroundAssetPreview({
                 className="relative z-10 size-full object-contain p-1 transition-transform duration-200 group-hover:scale-[1.02]"
                 onError={(): void => setLoadError(true)}
               />
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 backdrop-blur-[1px] transition-opacity group-hover:opacity-100">
+              <span className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 opacity-0 backdrop-blur-[1px] transition-opacity group-hover:opacity-100">
                 <span className="inline-flex items-center gap-1.5 rounded bg-background/90 px-2 py-1 text-xs font-medium text-foreground shadow">
                   <ZoomIn className="size-3.5" />
                   {t('editor.clickToExpand')}
                 </span>
-              </div>
+              </span>
             </>
           )}
         </button>
