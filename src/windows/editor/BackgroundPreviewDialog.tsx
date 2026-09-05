@@ -1,5 +1,5 @@
-import type { JSX } from 'react'
-import { useState } from 'react'
+import type { JSX, RefObject } from 'react'
+import { useRef, useState } from 'react'
 import { FolderOpen, Image as ImageIcon } from 'lucide-react'
 import {
   Dialog,
@@ -31,6 +31,7 @@ export function BackgroundPreviewDialog({
 }): JSX.Element | null {
   const { t } = useTranslation()
   const [loadError, setLoadError] = useState<boolean>(false)
+  const returnFocusRef: RefObject<HTMLElement | null> = useRef<HTMLElement | null>(null)
 
   if (!open || !assetKey || !asset) {
     return null
@@ -57,8 +58,16 @@ export function BackgroundPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-w-4xl flex-col p-4 sm:p-6"
+        className="flex flex-col p-4 sm:w-[calc(100%-2rem)] sm:max-w-4xl sm:p-6"
         data-slot="background-preview-dialog"
+        onOpenAutoFocus={(): void => {
+          const activeElement: Element | null = document.activeElement
+          returnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null
+        }}
+        onCloseAutoFocus={(event: Event): void => {
+          event.preventDefault()
+          returnFocusRef.current?.focus({ preventScroll: true })
+        }}
       >
         <DialogHeader className="mb-2 shrink-0">
           <div className="flex items-center justify-between gap-4 pr-6">

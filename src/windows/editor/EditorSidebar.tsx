@@ -977,6 +977,7 @@ function AssetThumbnail({
         <img
           src={url}
           alt={name}
+          loading="lazy"
           className="size-full object-cover"
           onError={(): void => setLoadError(true)}
         />
