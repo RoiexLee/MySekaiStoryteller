@@ -383,6 +383,7 @@ export default function App({
     const startedAt: number = performance.now()
     setLoadState({ status: 'loading' })
     setLoadedProject(null)
+    setPreviewBackgroundKey(null)
     setActionError(null)
     logger.info('editor.project_load_started', { projectName: activeProjectName })
 
