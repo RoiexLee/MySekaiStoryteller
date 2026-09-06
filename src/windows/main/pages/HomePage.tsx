@@ -63,7 +63,6 @@ export default function HomePage(): JSX.Element {
   const pinnedProjects: ProjectMetadata[] = projects
     .filter((project) => Boolean(project.pinned))
     .sort((a, b) => b.lastModified - a.lastModified)
-  const latestIsPinned: boolean = latest !== null && Boolean(latest.pinned)
 
   const handleOpenEditor = async (title: string): Promise<void> => {
     try {
@@ -116,7 +115,7 @@ export default function HomePage(): JSX.Element {
           )}
         >
           {pinnedProjects.length > 0 && (
-            <div className={cn(!latestIsPinned && (stackSections ? 'mb-5' : 'mb-8'))}>
+            <div className={cn(stackSections ? 'mb-5' : 'mb-8')}>
               <h3 className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
                 {t('home.pinned')}
               </h3>
@@ -133,22 +132,18 @@ export default function HomePage(): JSX.Element {
               </div>
             </div>
           )}
-          {!latestIsPinned && (
-            <>
-              <h3 className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                {t('home.recent')}
-              </h3>
-              {latest ? (
-                <HomeProjectCard
-                  project={latest}
-                  stackSections={stackSections}
-                  onEdit={handleOpenEditor}
-                  onPlay={handleOpenPlayer}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground">{t('home.noRecent')}</p>
-              )}
-            </>
+          <h3 className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+            {t('home.recent')}
+          </h3>
+          {latest ? (
+            <HomeProjectCard
+              project={latest}
+              stackSections={stackSections}
+              onEdit={handleOpenEditor}
+              onPlay={handleOpenPlayer}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('home.noRecent')}</p>
           )}
         </div>
 
