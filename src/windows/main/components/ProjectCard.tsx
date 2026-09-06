@@ -2,6 +2,7 @@ import { Card } from '@/components/ui/Card'
 import { Clock, Edit3, Play, Trash2, FileEdit, MoreHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { timeAgo } from '@/windows/main/utils/time'
+import { getErrorMessage } from '@/lib/errorMessage'
 import type { ProjectMetadata } from '@/project/metadata'
 import { deleteProject, renameProject } from '@/project/api'
 import { openEditorWindow, openPlayerWindow } from '@/windows/api'
@@ -63,7 +64,7 @@ export function ProjectCard({ metadata, onDelete, onRename }: ProjectCardProps):
     } catch (error) {
       alert(
         t('project.deleteFailed', {
-          error: error instanceof Error ? error.message : t('common.unknownError')
+          error: getErrorMessage(error, t('common.unknownError'))
         })
       )
     } finally {
@@ -85,7 +86,7 @@ export function ProjectCard({ metadata, onDelete, onRename }: ProjectCardProps):
     } catch (error) {
       alert(
         t('project.renameFailed', {
-          error: error instanceof Error ? error.message : t('common.unknownError')
+          error: getErrorMessage(error, t('common.unknownError'))
         })
       )
     } finally {
@@ -102,7 +103,7 @@ export function ProjectCard({ metadata, onDelete, onRename }: ProjectCardProps):
     } catch (error) {
       alert(
         t('project.openEditorFailed', {
-          error: error instanceof Error ? error.message : t('common.unknownError')
+          error: getErrorMessage(error, t('common.unknownError'))
         })
       )
     } finally {
@@ -118,7 +119,7 @@ export function ProjectCard({ metadata, onDelete, onRename }: ProjectCardProps):
     } catch (error) {
       alert(
         t('project.openPlayerFailed', {
-          error: error instanceof Error ? error.message : t('common.unknownError')
+          error: getErrorMessage(error, t('common.unknownError'))
         })
       )
     } finally {

@@ -1,6 +1,7 @@
 import type { ChangeEvent, FormEvent, JSX } from 'react'
 import { useEffect, useState } from 'react'
 import { createProject } from '@/project/api'
+import { getErrorMessage } from '@/lib/errorMessage'
 import {
   Dialog,
   DialogContent,
@@ -49,7 +50,7 @@ export function CreateProjectDialog({
       onOpenChange(false)
       onSuccess(normalizedProjectName)
     } catch (err: unknown) {
-      setError(t('project.createFailed'))
+      setError(getErrorMessage(err, t('project.createFailed')))
       console.error('Failed to create project:', err)
     } finally {
       setIsCreating(false)

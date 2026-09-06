@@ -24,6 +24,7 @@ import { useViewportMode, type ViewportMode } from '@/hooks/useViewportMode'
 import { isMobileRuntime } from '@/lib/platform'
 
 import { cn } from '@/lib/style'
+import { getErrorMessage } from '@/lib/errorMessage'
 import { CreateProjectDialog } from '@/windows/main/components/CreateProjectDialog'
 import { useProjectsMetadata } from '@/windows/main/hooks/useProjectsMetadata'
 import { useSpinOnce } from '@/windows/main/hooks/useSpinOnce'
@@ -112,7 +113,7 @@ export default function ProjectsPage(): JSX.Element {
     } catch (error) {
       alert(
         t('project.openEditorFailed', {
-          error: error instanceof Error ? error.message : t('common.unknownError')
+          error: getErrorMessage(error, t('common.unknownError'))
         })
       )
     }
@@ -124,7 +125,7 @@ export default function ProjectsPage(): JSX.Element {
     } catch (error) {
       alert(
         t('project.openPlayerFailed', {
-          error: error instanceof Error ? error.message : t('common.unknownError')
+          error: getErrorMessage(error, t('common.unknownError'))
         })
       )
     }
@@ -144,7 +145,7 @@ export default function ProjectsPage(): JSX.Element {
     } catch (error) {
       alert(
         t('project.deleteFailed', {
-          error: error instanceof Error ? error.message : t('common.unknownError')
+          error: getErrorMessage(error, t('common.unknownError'))
         })
       )
     } finally {
@@ -166,7 +167,7 @@ export default function ProjectsPage(): JSX.Element {
     } catch (error) {
       alert(
         t('project.renameFailed', {
-          error: error instanceof Error ? error.message : t('common.unknownError')
+          error: getErrorMessage(error, t('common.unknownError'))
         })
       )
     } finally {

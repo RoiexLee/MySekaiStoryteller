@@ -12,6 +12,7 @@ import { MAIN_TOUR_VERSION } from '@/onboarding/types'
 import { MainProductTour } from '@/onboarding/MainProductTour'
 import { useTranslation } from 'react-i18next'
 import { useViewportMode } from '@/hooks/useViewportMode'
+import { getErrorMessage } from '@/lib/errorMessage'
 import { cn } from '@/lib/style'
 import { detectPreferTouchMode } from '@/lib/touchMode'
 import { isMobileRuntime } from '@/lib/platform'
@@ -67,7 +68,7 @@ export default function HomePage(): JSX.Element {
     } catch (error) {
       alert(
         t('project.openEditorFailed', {
-          error: error instanceof Error ? error.message : t('common.unknownError')
+          error: getErrorMessage(error, t('common.unknownError'))
         })
       )
     }
@@ -79,7 +80,7 @@ export default function HomePage(): JSX.Element {
     } catch (error) {
       alert(
         t('project.openPlayerFailed', {
-          error: error instanceof Error ? error.message : t('common.unknownError')
+          error: getErrorMessage(error, t('common.unknownError'))
         })
       )
     }
