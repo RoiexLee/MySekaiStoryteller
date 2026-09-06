@@ -7,8 +7,7 @@ import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { prefersInAppNavigation } from '@/lib/platform'
 import {
-  enterImmersiveMode,
-  exitImmersiveMode,
+  applyFullscreenModePreference,
   lockLandscapeOrientation,
   unlockOrientation
 } from '@/lib/orientation'
@@ -86,11 +85,16 @@ export default function App({
   const [reloadRequest, setReloadRequest] = useState<number>(0)
   const [shortcutOverride, setShortcutOverride] = useState<ShortcutSettings | null>(null)
   const [mobileControlsVisible, setMobileControlsVisible] = useState<boolean>(false)
+  const fullscreenModeRef = useRef<boolean>(false)
   const shortcuts: ShortcutSettings = useMemo(
     (): ShortcutSettings =>
       normalizeShortcutSettings(shortcutOverride ?? storyInput?.settings?.shortcuts),
     [shortcutOverride, storyInput?.settings?.shortcuts]
   )
+
+  const restoreImmersivePreference = useCallback((): void => {
+    applyFullscreenModePreference(fullscreenModeRef.current)
+  }, [])
 
   const clearControlsHideTimer = useCallback((): void => {
     if (controlsHideTimerRef.current === null) return
@@ -113,8 +117,11 @@ export default function App({
     let unlisten: (() => void) | null = null
 
     void listen<AppSettings>('settings-changed', (event: TauriEvent<AppSettings>): void => {
-      if (!disposed) setShortcutOverride(normalizeShortcutSettings(event.payload.shortcuts))
-      applyAppLanguage(event.payload.language)
+      if (!disposed) {
+        setShortcutOverride(normalizeShortcutSettings(event.payload.shortcuts))
+        fullscreenModeRef.current = Boolean(event.payload.interaction?.fullscreenMode)
+        applyAppLanguage(event.payload.language)
+      }
     }).then((dispose: () => void): void => {
       if (disposed) dispose()
       else unlisten = dispose
@@ -127,7 +134,7 @@ export default function App({
   }, [])
 
   useEffect((): (() => void) | undefined => {
-    if (!inAppNavigation) return undefined
+    if (!inAppNavigation || !storyInput) return undefined
 
     let cancelled: boolean = false
     const currentWindow: TauriWindow = getCurrentWindow()
@@ -141,18 +148,20 @@ export default function App({
       }
       if (cancelled) {
         await currentWindow.setFullscreen(false).catch((): void => undefined)
-        exitImmersiveMode()
+        restoreImmersivePreference()
         return
       }
 
-      const immersive: boolean = enterImmersiveMode()
+      const immersive: boolean = applyFullscreenModePreference(
+        Boolean(storyInput.settings?.interaction?.fullscreenMode)
+      )
       if (immersive) logger.info('player.immersive_mode_entered')
 
       const locked: boolean = await lockLandscapeOrientation()
       if (cancelled) {
         if (locked) unlockOrientation()
         await currentWindow.setFullscreen(false).catch((): void => undefined)
-        exitImmersiveMode()
+        restoreImmersivePreference()
         return
       }
       if (locked) logger.info('player.orientation_locked', { orientation: 'landscape' })
@@ -167,10 +176,10 @@ export default function App({
         .catch((error: unknown): void => {
           logger.warn('player.mobile_fullscreen_exit_failed', { error: describeError(error) })
         })
-        .finally((): void => exitImmersiveMode())
+        .finally((): void => restoreImmersivePreference())
       logger.info('player.orientation_unlocked')
     }
-  }, [clearControlsHideTimer, inAppNavigation])
+  }, [clearControlsHideTimer, inAppNavigation, restoreImmersivePreference, storyInput])
 
   useEffect((): (() => void) => {
     const currentWindow: TauriWindow = getCurrentWindow()
@@ -244,6 +253,7 @@ export default function App({
     loadPlayerStoryInput(projectName)
       .then((input: PlayerStoryInput): void => {
         if (cancelled) return
+        fullscreenModeRef.current = Boolean(input.settings?.interaction?.fullscreenMode)
         setStoryInput(input)
         setLoadState({ status: 'ready' })
         logger.info('player.project_load_completed', {
