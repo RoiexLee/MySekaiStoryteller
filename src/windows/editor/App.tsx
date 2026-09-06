@@ -45,6 +45,7 @@ import {
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/style'
 import { isMobileRuntime } from '@/lib/platform'
+import { getErrorMessage } from '@/lib/errorMessage'
 import { describeError as describeLogError, logger } from '@/lib/logger'
 import type {
   ImportedModelResult,
@@ -326,7 +327,7 @@ export default function App({
           await currentWindow.destroy()
         } catch (error: unknown) {
           allowWindowCloseRef.current = false
-          setActionError(describeError(error, t('editor.closeEditorFailed')))
+          setActionError(getErrorMessage(error, t('editor.closeEditorFailed')))
           logger.error('editor.window_close_failed', {
             error: describeLogError(error)
           })
@@ -419,7 +420,7 @@ export default function App({
         })
         setLoadState({
           status: 'error',
-          error: describeError(error, t('editor.loadProjectFailed'))
+          error: getErrorMessage(error, t('editor.loadProjectFailed'))
         })
       })
 
@@ -567,7 +568,7 @@ export default function App({
         return true
       } catch (error: unknown) {
         if (session !== saveSessionRef.current) return false
-        const message: string = describeError(error, t('editor.saveStoryFailed'))
+        const message: string = getErrorMessage(error, t('editor.saveStoryFailed'))
         setStorySaveStatus('error')
         setStorySaveError(message)
         logger.error('editor.story_save_failed', {
@@ -626,7 +627,7 @@ export default function App({
       } catch (error: unknown) {
         if (session !== saveSessionRef.current) return false
         if (!pendingAssetWriteRef.current) pendingAssetWriteRef.current = write
-        setActionError(describeError(error, t('editor.saveAssetsFailed')))
+        setActionError(getErrorMessage(error, t('editor.saveAssetsFailed')))
         logger.error('editor.assets_save_failed', {
           projectName: write.projectName,
           error: describeLogError(error)
@@ -701,7 +702,7 @@ export default function App({
       if (!saved) return
       await openPlayerWindow(loadedProject.previewInput.projectName)
     } catch (error: unknown) {
-      setActionError(describeError(error, t('editor.openPlayerFailed')))
+      setActionError(getErrorMessage(error, t('editor.openPlayerFailed')))
     }
   }
 
@@ -825,7 +826,7 @@ export default function App({
       setActivePanel('story')
       setAddDialogOpen(false)
     } catch (error: unknown) {
-      setActionError(describeError(error, t('editor.addSnippetFailed')))
+      setActionError(getErrorMessage(error, t('editor.addSnippetFailed')))
     }
   }
 
@@ -902,7 +903,7 @@ export default function App({
         setActivePanel('assets')
       })
     } catch (error: unknown) {
-      const message: string = describeError(
+      const message: string = getErrorMessage(
         error,
         t('editor.importAssetFailed', { kind: localizeAssetKind(kind) })
       )
@@ -1014,7 +1015,7 @@ export default function App({
         setSelectedAsset({ kind: selection.kind, key: nextKey })
       })
     } catch (error: unknown) {
-      setActionError(describeError(error, t('editor.renameAssetFailed')))
+      setActionError(getErrorMessage(error, t('editor.renameAssetFailed')))
     }
   }
 
@@ -1044,7 +1045,7 @@ export default function App({
       )
       setAssetDeletePrompt({ selection, references })
     } catch (error: unknown) {
-      setActionError(describeError(error, t('editor.inspectReferencesFailed')))
+      setActionError(getErrorMessage(error, t('editor.inspectReferencesFailed')))
     }
   }
 
@@ -1064,7 +1065,7 @@ export default function App({
         setAssetDeletePrompt(null)
       })
     } catch (error: unknown) {
-      setActionError(describeError(error, t('editor.deleteAssetFailed')))
+      setActionError(getErrorMessage(error, t('editor.deleteAssetFailed')))
       setAssetDeletePrompt(null)
     }
   }
@@ -1257,7 +1258,7 @@ export default function App({
                     if (saved) void closeEditorWindow()
                   })
                   .catch((error: unknown): void => {
-                    setActionError(describeError(error, t('editor.saveProjectFailed')))
+                    setActionError(getErrorMessage(error, t('editor.saveProjectFailed')))
                   })
               }}
             >
@@ -1531,7 +1532,7 @@ export default function App({
               setRegisterModelOpen(false)
             })
           } catch (error: unknown) {
-            setActionError(describeError(error, t('editor.registerModelFailed')))
+            setActionError(getErrorMessage(error, t('editor.registerModelFailed')))
             throw error
           }
         }}
@@ -1563,7 +1564,7 @@ export default function App({
               setRegisterModelOpen(false)
             })
           } catch (error: unknown) {
-            setActionError(describeError(error, t('editor.importModelFailed')))
+            setActionError(getErrorMessage(error, t('editor.importModelFailed')))
             throw error
           }
         }}
@@ -1816,7 +1817,7 @@ function ModelRegistrationDialog({
     } catch (inspectionError: unknown) {
       setSourcePath('')
       setArchiveEntry(undefined)
-      setError(describeError(inspectionError, t('editor.inspectModelZipFailed')))
+      setError(getErrorMessage(inspectionError, t('editor.inspectModelZipFailed')))
     } finally {
       setInspectingArchive(false)
     }
@@ -1834,7 +1835,7 @@ function ModelRegistrationDialog({
       }
     } catch (submitError: unknown) {
       setError(
-        describeError(
+        getErrorMessage(
           submitError,
           mode === 'existing' ? t('editor.registerModelFailed') : t('editor.importModelFailed')
         )
@@ -2132,10 +2133,6 @@ function countDescendants(node: NonNullable<ReturnType<typeof findEditorNode>>):
   return (
     1 + node.snippets.reduce((count: number, child): number => count + countDescendants(child), 0)
   )
-}
-
-function describeError(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback
 }
 
 function storyFingerprint(story: EditorStory): string {

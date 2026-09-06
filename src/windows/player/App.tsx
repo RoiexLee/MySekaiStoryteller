@@ -37,6 +37,7 @@ import { matchesShortcut, normalizeShortcutSettings } from '@/settings/shortcuts
 import type { AppSettings, RenderPrecision, ShortcutSettings } from '@/settings/types'
 import { loadPlaybackFontFamily } from '@/settings/fonts'
 import { getDataPath } from '@/workspace/api'
+import { getErrorMessage } from '@/lib/errorMessage'
 import { describeError, logger } from '@/lib/logger'
 import { applyAppLanguage, i18n } from '@/i18n'
 import { useTranslation } from 'react-i18next'
@@ -272,7 +273,7 @@ export default function App({
         })
         setLoadState({
           status: 'error',
-          error: error instanceof Error ? error.message : t('player.storyLoadFailed')
+          error: getErrorMessage(error, t('player.storyLoadFailed'))
         })
       })
 
