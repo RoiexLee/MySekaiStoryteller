@@ -103,6 +103,7 @@ export const zhCN = {
   home: {
     welcome: '欢迎回来',
     recent: '上次编辑',
+    pinned: '置顶项目',
     continueEditing: '继续编辑',
     noRecent: '还没有编辑过项目。',
     quickActions: '快捷操作',

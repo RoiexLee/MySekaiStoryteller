@@ -113,6 +113,7 @@ export const en: LocaleShape = {
   home: {
     welcome: 'Welcome back',
     recent: 'Last edited',
+    pinned: 'Pinned projects',
     continueEditing: 'Continue editing',
     noRecent: 'No projects have been edited yet.',
     quickActions: 'Quick actions',

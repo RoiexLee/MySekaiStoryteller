@@ -60,6 +60,10 @@ export default function HomePage(): JSX.Element {
 
   const latest: ProjectMetadata | null =
     projects.length > 0 ? [...projects].sort((a, b) => b.lastModified - a.lastModified)[0] : null
+  const pinnedProjects: ProjectMetadata[] = projects
+    .filter((project) => Boolean(project.pinned))
+    .sort((a, b) => b.lastModified - a.lastModified)
+  const latestIsPinned: boolean = latest !== null && Boolean(latest.pinned)
 
   const handleOpenEditor = async (title: string): Promise<void> => {
     try {
@@ -111,42 +115,40 @@ export default function HomePage(): JSX.Element {
             stackSections && 'rounded-2xl border bg-card p-4 shadow-xs'
           )}
         >
-          <h3 className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
-            {t('home.recent')}
-          </h3>
-          {latest ? (
-            <div className="space-y-4">
-              <div>
-                <h4 className="truncate text-lg font-medium">{latest.title}</h4>
-                <div className="mt-1 flex items-center text-xs text-muted-foreground">
-                  <Clock className="mr-1 h-3 w-3" />
-                  <span>{timeAgo(latest.lastModified)}</span>
-                </div>
-              </div>
-              <div
-                className={cn(
-                  'flex gap-2',
-                  stackSections && '[&>button]:h-11 [&>button]:flex-1 [&>button]:justify-center'
-                )}
-              >
-                <button
-                  onClick={() => handleOpenEditor(latest.title)}
-                  className="flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  <Edit3 className="h-3.5 w-3.5" />
-                  {t('home.continueEditing')}
-                </button>
-                <button
-                  onClick={() => handleOpenPlayer(latest.title)}
-                  className="flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
-                >
-                  <Play className="h-3.5 w-3.5" />
-                  {t('common.play')}
-                </button>
+          {pinnedProjects.length > 0 && (
+            <div className={cn(!latestIsPinned && (stackSections ? 'mb-5' : 'mb-8'))}>
+              <h3 className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                {t('home.pinned')}
+              </h3>
+              <div className="space-y-5">
+                {pinnedProjects.map((project) => (
+                  <HomeProjectCard
+                    key={project.title}
+                    project={project}
+                    stackSections={stackSections}
+                    onEdit={handleOpenEditor}
+                    onPlay={handleOpenPlayer}
+                  />
+                ))}
               </div>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">{t('home.noRecent')}</p>
+          )}
+          {!latestIsPinned && (
+            <>
+              <h3 className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                {t('home.recent')}
+              </h3>
+              {latest ? (
+                <HomeProjectCard
+                  project={latest}
+                  stackSections={stackSections}
+                  onEdit={handleOpenEditor}
+                  onPlay={handleOpenPlayer}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">{t('home.noRecent')}</p>
+              )}
+            </>
           )}
         </div>
 
@@ -232,6 +234,54 @@ export default function HomePage(): JSX.Element {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+type HomeProjectCardProps = {
+  project: ProjectMetadata
+  stackSections: boolean
+  onEdit: (title: string) => void
+  onPlay: (title: string) => void
+}
+
+function HomeProjectCard({
+  project,
+  stackSections,
+  onEdit,
+  onPlay
+}: HomeProjectCardProps): JSX.Element {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-4">
+      <div>
+        <h4 className="truncate text-lg font-medium">{project.title}</h4>
+        <div className="mt-1 flex items-center text-xs text-muted-foreground">
+          <Clock className="mr-1 h-3 w-3" />
+          <span>{timeAgo(project.lastModified)}</span>
+        </div>
+      </div>
+      <div
+        className={cn(
+          'flex gap-2',
+          stackSections && '[&>button]:h-11 [&>button]:flex-1 [&>button]:justify-center'
+        )}
+      >
+        <button
+          onClick={(): void => void onEdit(project.title)}
+          className="flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Edit3 className="h-3.5 w-3.5" />
+          {t('home.continueEditing')}
+        </button>
+        <button
+          onClick={(): void => void onPlay(project.title)}
+          className="flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
+        >
+          <Play className="h-3.5 w-3.5" />
+          {t('common.play')}
+        </button>
+      </div>
     </div>
   )
 }

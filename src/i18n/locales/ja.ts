@@ -109,6 +109,7 @@ export const ja: typeof en = {
   home: {
     welcome: 'おかえりなさい',
     recent: '最近の編集',
+    pinned: 'ピン留めしたプロジェクト',
     continueEditing: '編集を続ける',
     noRecent: '編集したプロジェクトはまだありません。',
     quickActions: 'クイック操作',

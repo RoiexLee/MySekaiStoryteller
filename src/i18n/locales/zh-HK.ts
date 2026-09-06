@@ -107,6 +107,7 @@ export const zhHK: LocaleShape = {
   home: {
     welcome: '歡迎回來',
     recent: '上次編輯',
+    pinned: '置頂專案',
     continueEditing: '繼續編輯',
     noRecent: '還沒有編輯過專案。',
     quickActions: '快速操作',
