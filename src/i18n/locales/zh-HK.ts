@@ -80,6 +80,10 @@ export const zhHK: LocaleShape = {
     openPlayerFailed: '開啟播放器失敗：{{error}}',
     deleteFailed: '刪除失敗：{{error}}',
     renameFailed: '重新命名失敗：{{error}}',
+    pin: '置頂',
+    unpin: '取消置頂',
+    pinFailed: '置頂失敗：{{error}}',
+    unpinFailed: '取消置頂失敗：{{error}}',
     metadataMissing: '專案 metadata.json 不存在：{{name}}'
   },
   projectArchive: {

@@ -76,6 +76,10 @@ export const zhCN = {
     openPlayerFailed: '打开播放器失败：{{error}}',
     deleteFailed: '删除失败：{{error}}',
     renameFailed: '重命名失败：{{error}}',
+    pin: '置顶',
+    unpin: '取消置顶',
+    pinFailed: '置顶失败：{{error}}',
+    unpinFailed: '取消置顶失败：{{error}}',
     metadataMissing: '项目 metadata.json 不存在：{{name}}'
   },
   projectArchive: {

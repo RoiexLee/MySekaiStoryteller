@@ -84,6 +84,10 @@ export const en: LocaleShape = {
     openPlayerFailed: 'Could not open player: {{error}}',
     deleteFailed: 'Delete failed: {{error}}',
     renameFailed: 'Rename failed: {{error}}',
+    pin: 'Pin to top',
+    unpin: 'Unpin',
+    pinFailed: 'Failed to pin project: {{error}}',
+    unpinFailed: 'Failed to unpin project: {{error}}',
     metadataMissing: 'Project metadata.json is missing: {{name}}'
   },
   projectArchive: {

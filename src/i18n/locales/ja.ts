@@ -80,6 +80,10 @@ export const ja: typeof en = {
     openPlayerFailed: 'プレイヤーを開けませんでした: {{error}}',
     deleteFailed: '削除に失敗しました: {{error}}',
     renameFailed: '名前の変更に失敗しました: {{error}}',
+    pin: 'トップに固定',
+    unpin: '固定を解除',
+    pinFailed: 'プロジェクトの固定に失敗しました: {{error}}',
+    unpinFailed: 'プロジェクトの固定解除に失敗しました: {{error}}',
     metadataMissing: 'プロジェクトのmetadata.jsonがありません：{{name}}'
   },
   projectArchive: {

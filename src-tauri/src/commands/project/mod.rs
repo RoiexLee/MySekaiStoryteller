@@ -30,6 +30,8 @@ pub struct AssetsSummary {
 pub struct ProjectMetadata {
     pub title: String,
     pub last_modified: u64,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub pinned: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assets_summary: Option<AssetsSummary>,
 }
