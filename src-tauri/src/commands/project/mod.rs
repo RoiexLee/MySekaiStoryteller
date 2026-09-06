@@ -89,8 +89,6 @@ fn validate_project_reference(name: &str) -> Result<(), String> {
     if !is_single_normal_component(name) {
         return Err("项目名称不能是 . 或 .. 等路径别名".into());
     }
-    // Win32 strips trailing dots and spaces from the final path component, so a name made
-    // entirely of dots and spaces (". ", "...") resolves to the projects directory itself.
     if name
         .trim_end_matches(|c: char| c == '.' || c == ' ')
         .is_empty()
@@ -125,6 +123,9 @@ fn is_windows_reserved_name(name: &str) -> bool {
             | "COM7"
             | "COM8"
             | "COM9"
+            | "COM¹"
+            | "COM²"
+            | "COM³"
             | "LPT1"
             | "LPT2"
             | "LPT3"
@@ -134,6 +135,9 @@ fn is_windows_reserved_name(name: &str) -> bool {
             | "LPT7"
             | "LPT8"
             | "LPT9"
+            | "LPT¹"
+            | "LPT²"
+            | "LPT³"
     )
 }
 
@@ -762,7 +766,29 @@ mod tests {
     #[test]
     fn validate_project_name_rejects_path_aliases_and_windows_unsafe_names() {
         let rejected = [
-            ".", "..", "foo.", "foo ", "CON", "con.txt", "NUL", "COM1", "LPT9", "a/b", "a\\b",
+            ".",
+            "..",
+            "foo.",
+            "foo ",
+            "CON",
+            "con.txt",
+            "NUL",
+            "COM1",
+            "LPT9",
+            "a/b",
+            "a\\b",
+            "COM¹",
+            "COM²",
+            "COM³",
+            "LPT¹",
+            "LPT²",
+            "LPT³",
+            "COM¹.txt",
+            "COM².txt",
+            "COM³.txt",
+            "LPT¹.txt",
+            "LPT².txt",
+            "LPT³.txt",
         ];
         for name in rejected {
             assert!(
